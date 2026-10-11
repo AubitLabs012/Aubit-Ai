@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aubit ER Diagram</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #5f6b7a;
+      --line: #64748b;
+      --panel: #ffffff;
+      --accent: #0f766e;
+      --accent-soft: #d8f3ee;
+      --event: #7c2d12;
+      --event-soft: #ffedd5;
+      --ai: #1d4ed8;
+      --ai-soft: #dbeafe;
+      --page: #f6f7fb;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.5;
+    }
+
+    main {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 32px auto;
+    }
+
+    header {
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 840px;
+    }
+
+    .canvas {
+      overflow-x: auto;
+      border: 1px solid #d7dde8;
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+    }
+
+    svg {
+      display: block;
+      min-width: 1100px;
+      width: 100%;
+      height: auto;
+    }
+
+    .table {
+      fill: var(--panel);
+      stroke-width: 2;
+      rx: 8;
+    }
+
+    .users {
+      stroke: var(--accent);
+    }
+
+    .events {
+      stroke: var(--event);
+    }
+
+    .ai {
+      stroke: var(--ai);
+    }
+
+    .header-users {
+      fill: var(--accent-soft);
+    }
+
+    .header-events {
+      fill: var(--event-soft);
+    }
+
+    .header-ai {
+      fill: var(--ai-soft);
+    }
+
+    .entity-title {
+      font-size: 18px;
+      font-weight: 700;
+      fill: var(--ink);
+    }
+
+    .field {
+      font-size: 14px;
+      fill: var(--ink);
+    }
+
+    .key {
+      font-weight: 700;
+    }
+
+    .relation {
+      stroke: var(--line);
+      stroke-width: 2;
+      fill: none;
+    }
+
+    .label {
+      font-size: 13px;
+      fill: var(--muted);
+      font-weight: 700;
+    }
+
+    .note {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Aubit ER Diagram</h1>
+      <p>Current backend data model inferred from the MongoDB repositories and services.</p>
+    </header>
+
+    <section class="canvas" aria-label="Aubit entity relationship diagram">
+      <svg viewBox="0 0 1100 680" role="img" aria-labelledby="diagramTitle diagramDesc">
+        <title id="diagramTitle">Aubit entity relationship diagram</title>
+        <desc id="diagramDesc">Users have many game events and many AI responses.</desc>
+
+        <defs>
+          <marker id="crow" viewBox="0 0 16 16" refX="15" refY="8" markerWidth="12" markerHeight="12" orient="auto-start-reverse">
+            <path d="M 1 1 L 15 8 L 1 15 M 1 8 L 15 8" stroke="#64748b" stroke-width="1.8" fill="none"/>
+          </marker>
+          <marker id="one" viewBox="0 0 12 12" refX="2" refY="6" markerWidth="10" markerHeight="10" orient="auto">
+            <path d="M 2 1 L 2 11 M 6 1 L 6 11" stroke="#64748b" stroke-width="1.7" fill="none"/>
+          </marker>
+        </defs>
+
+        <rect x="50" y="170" width="300" height="320" class="table users"/>
+        <rect x="50" y="170" width="300" height="54" class="header-users" rx="8"/>
+        <text x="74" y="204" class="entity-title">USERS</text>
+        <text x="74" y="252" class="field key">id : string PK</text>
+        <text x="74" y="280" class="field">username : string</text>
+        <text x="74" y="308" class="field key">username_lc : string UK</text>
+        <text x="74" y="336" class="field">role : string</text>
+        <text x="74" y="364" class="field">display_name : string</text>
+        <text x="74" y="392" class="field">password_hash : string</text>
+        <text x="74" y="420" class="field">coins : int</text>
+        <text x="74" y="448" class="field">stars : int</text>
+        <text x="74" y="476" class="field">games_played : int</text>
+
+        <rect x="740" y="70" width="310" height="230" class="table events"/>
+        <rect x="740" y="70" width="310" height="54" class="header-events" rx="8"/>
+        <text x="764" y="104" class="entity-title">GAME_EVENTS</text>
+        <text x="764" y="152" class="field key">user_id : string FK</text>
+        <text x="764" y="180" class="field">game_type : string</text>
+        <text x="764" y="208" class="field">result : string</text>
+        <text x="764" y="236" class="field">score : int</text>
+        <text x="764" y="264" class="field">rewards : object</text>
+        <text x="764" y="292" class="field">processed_at : string</text>
+
+        <rect x="740" y="370" width="310" height="270" class="table ai"/>
+        <rect x="740" y="370" width="310" height="54" class="header-ai" rx="8"/>
+        <text x="764" y="404" class="entity-title">AI_RESPONSES</text>
+        <text x="764" y="452" class="field key">request_id : string PK</text>
+        <text x="764" y="480" class="field key">user_id : string FK</text>
+        <text x="764" y="508" class="field">response / transcript : string</text>
+        <text x="764" y="536" class="field">voice_preview : string</text>
+        <text x="764" y="564" class="field">provider / model : string</text>
+        <text x="764" y="592" class="field">content_type / language : string</text>
+        <text x="764" y="620" class="field">generated_at : string</text>
+
+        <path d="M 350 260 C 495 260, 590 185, 740 185" class="relation" marker-start="url(#one)" marker-end="url(#crow)"/>
+        <text x="468" y="214" class="label">one user has many game events</text>
+
+        <path d="M 350 405 C 500 405, 590 505, 740 505" class="relation" marker-start="url(#one)" marker-end="url(#crow)"/>
+        <text x="462" y="486" class="label">one user has many AI responses</text>
+      </svg>
+    </section>
+
+    <p class="note">Indexes: users.id unique, users.username_lc unique, ai_responses.request_id unique, ai_responses.user_id, game_events.user_id, and game_events.user_id + processed_at descending.</p>
+  </main>
+</body>
+</html>

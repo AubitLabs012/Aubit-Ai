@@ -1,0 +1,14 @@
+{
+  "name": "sid-ai-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SID desktop AI assistant prototype with voice, memory, and guarded desktop tools.",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "check": "node --check electron/main.js && node --check electron/preload.js && node --check src/app.js"
+  },
+  "devDependencies": {
+    "electron": "^41.1.1"
+  }
+}

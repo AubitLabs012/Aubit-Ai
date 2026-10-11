@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Subway Sprint</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #f7fbff;
+        --muted: rgba(247, 251, 255, 0.72);
+        --panel: rgba(7, 19, 31, 0.82);
+        --line: rgba(255, 255, 255, 0.18);
+        --mint: #20d6a1;
+        --cyan: #35d9ff;
+        --gold: #ffe66d;
+        --danger: #ff5f6d;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+        font-family: Inter, "Segoe UI", Arial, sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 18% 16%, rgba(53, 217, 255, 0.3), transparent 26%),
+          radial-gradient(circle at 86% 10%, rgba(255, 230, 109, 0.18), transparent 24%),
+          linear-gradient(150deg, #07131f 0%, #102d3e 42%, #091724 100%);
+      }
+
+      .game {
+        position: relative;
+        display: grid;
+        min-height: 100vh;
+        padding: clamp(10px, 2vw, 20px);
+        overflow: hidden;
+      }
+
+      .hud {
+        position: absolute;
+        top: 14px;
+        left: 14px;
+        right: 14px;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        pointer-events: none;
+      }
+
+      .stats,
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .actions {
+        pointer-events: auto;
+      }
+
+      .pill,
+      .icon-button {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
+        backdrop-filter: blur(14px);
+      }
+
+      .pill {
+        display: grid;
+        min-width: 82px;
+        gap: 2px;
+        padding: 8px 10px;
+        border-radius: 8px;
+      }
+
+      .pill span {
+        color: var(--muted);
+        font-size: 0.66rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .pill strong {
+        font-size: 1rem;
+      }
+
+      .icon-button {
+        width: 42px;
+        height: 42px;
+        border-radius: 8px;
+        color: var(--ink);
+        font-size: 1.05rem;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      canvas {
+        width: min(100%, 980px);
+        height: min(100vh - 20px, 680px);
+        align-self: center;
+        justify-self: center;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 8px;
+        background: #0a1a27;
+        box-shadow: 0 28px 70px rgba(0, 0, 0, 0.34);
+        touch-action: none;
+      }
+
+      .overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 6;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+        background: rgba(4, 10, 17, 0.38);
+      }
+
+      .overlay[hidden] {
+        display: none;
+      }
+
+      .dialog {
+        width: min(92vw, 440px);
+        padding: 22px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(7, 19, 31, 0.92);
+        box-shadow: 0 28px 80px rgba(0, 0, 0, 0.38);
+        text-align: center;
+      }
+
+      .dialog h1 {
+        margin: 0 0 8px;
+        font-size: clamp(2rem, 7vw, 4rem);
+        line-height: 0.95;
+      }
+
+      .dialog p {
+        margin: 0 0 16px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .primary {
+        min-height: 44px;
+        padding: 0 18px;
+        border: 0;
+        border-radius: 8px;
+        color: #06121d;
+        background: linear-gradient(135deg, var(--gold), var(--mint));
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .touch-controls {
+        position: absolute;
+        left: 50%;
+        bottom: 14px;
+        z-index: 5;
+        display: none;
+        grid-template-columns: repeat(4, 54px);
+        gap: 8px;
+        transform: translateX(-50%);
+      }
+
+      .touch-controls button {
+        width: 54px;
+        height: 46px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        color: var(--ink);
+        background: rgba(7, 19, 31, 0.74);
+        font-size: 1.1rem;
+        font-weight: 900;
+      }
+
+      @media (max-width: 760px), (pointer: coarse) {
+        .touch-controls {
+          display: grid;
+        }
+
+        .hud {
+          align-items: flex-start;
+        }
+
+        .pill {
+          min-width: 72px;
+          padding: 7px 8px;
+        }
+
+        canvas {
+          height: calc(100vh - 8px);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="game">
+      <div class="hud">
+        <div class="stats">
+          <div class="pill"><span>Score</span><strong id="scoreLabel">0</strong></div>
+          <div class="pill"><span>Coins</span><strong id="coinLabel">0</strong></div>
+          <div class="pill"><span>Best</span><strong id="bestLabel">0</strong></div>
+        </div>
+        <div class="actions">
+          <button class="icon-button" id="pauseButton" type="button" aria-label="Pause game" title="Pause">II</button>
+          <button class="icon-button" id="restartButton" type="button" aria-label="Restart game" title="Restart">R</button>
+        </div>
+      </div>
+
+      <canvas id="gameCanvas" width="960" height="620" aria-label="Subway Sprint game area"></canvas>
+
+      <div class="touch-controls" aria-label="Touch controls">
+        <button type="button" data-control="left" aria-label="Move left">&lt;</button>
+        <button type="button" data-control="jump" aria-label="Jump">^</button>
+        <button type="button" data-control="slide" aria-label="Slide">v</button>
+        <button type="button" data-control="right" aria-label="Move right">&gt;</button>
+      </div>
+
+      <section class="overlay" id="overlay">
+        <div class="dialog">
+          <h1 id="overlayTitle">Subway Sprint</h1>
+          <p id="overlayCopy">Use arrow keys or WASD. Switch lanes, jump cones, slide under signs, and collect coins.</p>
+          <button class="primary" id="startButton" type="button">Start Run</button>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const scoreLabel = document.getElementById("scoreLabel");
+      const coinLabel = document.getElementById("coinLabel");
+      const bestLabel = document.getElementById("bestLabel");
+      const overlay = document.getElementById("overlay");
+      const overlayTitle = document.getElementById("overlayTitle");
+      const overlayCopy = document.getElementById("overlayCopy");
+      const startButton = document.getElementById("startButton");
+      const pauseButton = document.getElementById("pauseButton");
+      const restartButton = document.getElementById("restartButton");
+      const bestKey = "aubit.subway-sprint.best.v1";
+
+      const state = {
+        running: false,
+        paused: false,
+        over: false,
+        runId: 0,
+        lastTime: 0,
+        distance: 0,
+        score: 0,
+        coins: 0,
+        best: Number(localStorage.getItem(bestKey) || 0),
+        speed: 360,
+        spawnTimer: 0,
+        coinTimer: 0,
+        lane: 1,
+        laneTarget: 1,
+        laneX: 0,
+        jump: 0,
+        jumpVelocity: 0,
+        sliding: 0,
+        obstacles: [],
+        pickups: [],
+        sparks: [],
+      };
+
+      bestLabel.textContent = state.best;
+
+      function laneX(lane, y = canvas.height * 0.72) {
+        const center = canvas.width / 2;
+        const spread = 120 + y * 0.11;
+        return center + (lane - 1) * spread;
+      }
+
+      function reset() {
+        state.running = true;
+        state.paused = false;
+        state.over = false;
+        state.runId += 1;
+        state.lastTime = performance.now();
+        state.distance = 0;
+        state.score = 0;
+        state.coins = 0;
+        state.speed = 360;
+        state.spawnTimer = 0.8;
+        state.coinTimer = 0.45;
+        state.lane = 1;
+        state.laneTarget = 1;
+        state.laneX = laneX(1);
+        state.jump = 0;
+        state.jumpVelocity = 0;
+        state.sliding = 0;
+        state.obstacles = [];
+        state.pickups = [];
+        state.sparks = [];
+        overlay.hidden = true;
+        pauseButton.textContent = "II";
+        requestAnimationFrame((time) => loop(time, state.runId));
+      }
+
+      function endRun() {
+        state.running = false;
+        state.over = true;
+        if (state.score > state.best) {
+          state.best = state.score;
+          localStorage.setItem(bestKey, String(state.best));
+        }
+        bestLabel.textContent = state.best;
+        overlayTitle.textContent = "Run Complete";
+        overlayCopy.textContent = `Score ${state.score} with ${state.coins} coins. Press Start Run to dash again.`;
+        startButton.textContent = "Start Run";
+        overlay.hidden = false;
+        window.parent?.postMessage?.({
+          type: "aubit-game-action",
+          action: "game-reward",
+          game: "subway-sprint",
+          coins: Math.max(5, Math.floor(state.coins / 3)),
+          stars: state.score >= 1800 ? 1 : 0,
+        }, "*");
+      }
+
+      function spawnObstacle() {
+        const lane = Math.floor(Math.random() * 3);
+        const type = Math.random() > 0.58 ? "high" : Math.random() > 0.46 ? "train" : "low";
+        state.obstacles.push({ lane, type, y: -90, hit: false });
+      }
+
+      function spawnCoinRow() {
+        const lane = Math.floor(Math.random() * 3);
+        for (let i = 0; i < 4; i += 1) {
+          state.pickups.push({ lane, y: -80 - i * 58, taken: false });
+        }
+      }
+
+      function command(action) {
+        if (!state.running && action !== "restart") return;
+        if (action === "left") state.laneTarget = Math.max(0, state.laneTarget - 1);
+        if (action === "right") state.laneTarget = Math.min(2, state.laneTarget + 1);
+        if (action === "jump" && state.jump === 0) state.jumpVelocity = 760;
+        if (action === "slide" && state.jump === 0) state.sliding = 0.56;
+        if (action === "restart") reset();
+      }
+
+      function update(dt) {
+        state.distance += state.speed * dt;
+        state.speed = Math.min(760, state.speed + dt * 18);
+        state.score = Math.floor(state.distance / 9) + state.coins * 25;
+        state.spawnTimer -= dt;
+        state.coinTimer -= dt;
+
+        if (state.spawnTimer <= 0) {
+          spawnObstacle();
+          state.spawnTimer = Math.max(0.58, 1.18 - state.speed / 1100) + Math.random() * 0.28;
+        }
+        if (state.coinTimer <= 0) {
+          spawnCoinRow();
+          state.coinTimer = 1.45 + Math.random() * 1.4;
+        }
+
+        state.lane = state.laneTarget;
+        const targetX = laneX(state.laneTarget);
+        state.laneX += (targetX - state.laneX) * Math.min(1, dt * 12);
+
+        if (state.jumpVelocity || state.jump > 0) {
+          state.jump += state.jumpVelocity * dt;
+          state.jumpVelocity -= 1850 * dt;
+          if (state.jump <= 0) {
+            state.jump = 0;
+            state.jumpVelocity = 0;
+          }
+        }
+        state.sliding = Math.max(0, state.sliding - dt);
+
+        const travel = state.speed * dt;
+        state.obstacles.forEach((item) => {
+          item.y += travel;
+        });
+        state.pickups.forEach((item) => {
+          item.y += travel;
+        });
+        state.sparks.forEach((item) => {
+          item.life -= dt;
+          item.y += travel * 0.4;
+        });
+
+        checkCollisions();
+        state.obstacles = state.obstacles.filter((item) => item.y < canvas.height + 120);
+        state.pickups = state.pickups.filter((item) => item.y < canvas.height + 80 && !item.taken);
+        state.sparks = state.sparks.filter((item) => item.life > 0);
+
+        scoreLabel.textContent = state.score;
+        coinLabel.textContent = state.coins;
+      }
+
+      function checkCollisions() {
+        const playerY = canvas.height - 116;
+        const playerLane = state.laneTarget;
+        state.pickups.forEach((coin) => {
+          if (coin.lane === playerLane && Math.abs(coin.y - playerY) < 44 && state.jump < 128) {
+            coin.taken = true;
+            state.coins += 1;
+            for (let i = 0; i < 5; i += 1) {
+              state.sparks.push({ x: laneX(coin.lane, coin.y), y: coin.y, life: 0.35 + Math.random() * 0.25 });
+            }
+          }
+        });
+
+        for (const obstacle of state.obstacles) {
+          if (obstacle.hit || obstacle.lane !== playerLane || Math.abs(obstacle.y - playerY) > 48) continue;
+          const clearsLow = obstacle.type === "low" && state.jump > 86;
+          const clearsHigh = obstacle.type === "high" && state.sliding > 0;
+          if (!clearsLow && !clearsHigh) {
+            obstacle.hit = true;
+            endRun();
+            break;
+          }
+        }
+      }
+
+      function drawTrack() {
+        const w = canvas.width;
+        const h = canvas.height;
+        const horizon = 92;
+        const grd = ctx.createLinearGradient(0, 0, 0, h);
+        grd.addColorStop(0, "#163c52");
+        grd.addColorStop(0.45, "#0d2638");
+        grd.addColorStop(1, "#06121d");
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, w, h);
+
+        for (let i = 0; i < 9; i += 1) {
+          const x = (i * 138 - (state.distance * 0.12) % 138) - 80;
+          ctx.fillStyle = i % 2 ? "#214961" : "#182f43";
+          ctx.fillRect(x, 58, 78, 92);
+        }
+
+        ctx.fillStyle = "#0a1826";
+        ctx.beginPath();
+        ctx.moveTo(w * 0.36, horizon);
+        ctx.lineTo(w * 0.64, horizon);
+        ctx.lineTo(w * 0.94, h);
+        ctx.lineTo(w * 0.06, h);
+        ctx.closePath();
+        ctx.fill();
+
+        for (let lane = 0; lane < 3; lane += 1) {
+          const bottomX = laneX(lane);
+          const topX = w / 2 + (lane - 1) * 34;
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(topX, horizon);
+          ctx.lineTo(bottomX, h);
+          ctx.stroke();
+        }
+
+        ctx.strokeStyle = "rgba(255, 230, 109, 0.72)";
+        ctx.lineWidth = 5;
+        for (let y = horizon + ((state.distance * 0.55) % 58); y < h; y += 58) {
+          const scale = (y - horizon) / (h - horizon);
+          ctx.beginPath();
+          ctx.moveTo(w * 0.31 + scale * -120, y);
+          ctx.lineTo(w * 0.69 + scale * 120, y);
+          ctx.stroke();
+        }
+      }
+
+      function drawObstacle(item) {
+        const x = laneX(item.lane, item.y);
+        const scale = 0.35 + (item.y / canvas.height) * 0.9;
+        ctx.save();
+        ctx.translate(x, item.y);
+        ctx.scale(scale, scale);
+        if (item.type === "train") {
+          ctx.fillStyle = "#f7fbff";
+          ctx.fillRect(-42, -56, 84, 112);
+          ctx.fillStyle = "#17324f";
+          ctx.fillRect(-30, -42, 60, 30);
+          ctx.fillStyle = "#ff5f6d";
+          ctx.fillRect(-30, 28, 22, 12);
+          ctx.fillRect(8, 28, 22, 12);
+        } else if (item.type === "high") {
+          ctx.fillStyle = "#35d9ff";
+          ctx.fillRect(-54, -72, 108, 24);
+          ctx.fillStyle = "#ffe66d";
+          ctx.fillRect(-42, -64, 84, 8);
+        } else {
+          ctx.fillStyle = "#ff5f6d";
+          ctx.beginPath();
+          ctx.moveTo(0, -58);
+          ctx.lineTo(46, 38);
+          ctx.lineTo(-46, 38);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = "#ffe66d";
+          ctx.fillRect(-25, 6, 50, 12);
+        }
+        ctx.restore();
+      }
+
+      function drawCoin(item) {
+        const x = laneX(item.lane, item.y);
+        const scale = 0.42 + (item.y / canvas.height) * 0.52;
+        ctx.save();
+        ctx.translate(x, item.y);
+        ctx.scale(scale, scale);
+        ctx.fillStyle = "#ffe66d";
+        ctx.beginPath();
+        ctx.arc(0, 0, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#fff7b0";
+        ctx.lineWidth = 5;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawPlayer() {
+        const y = canvas.height - 116 - state.jump;
+        const slide = state.sliding > 0;
+        ctx.save();
+        ctx.translate(state.laneX, y);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.32)";
+        ctx.beginPath();
+        ctx.ellipse(0, 68 + state.jump * 0.18, 36, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#20d6a1";
+        ctx.fillRect(-20, slide ? -8 : -46, 40, slide ? 34 : 54);
+        ctx.fillStyle = "#f7fbff";
+        ctx.beginPath();
+        ctx.arc(0, slide ? -16 : -62, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#ffe66d";
+        ctx.lineWidth = 7;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(-18, slide ? 4 : -26);
+        ctx.lineTo(-43, slide ? 20 : -4);
+        ctx.moveTo(18, slide ? 4 : -26);
+        ctx.lineTo(43, slide ? 20 : -4);
+        ctx.moveTo(-12, slide ? 26 : 8);
+        ctx.lineTo(-26, 48);
+        ctx.moveTo(12, slide ? 26 : 8);
+        ctx.lineTo(28, 48);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function draw() {
+        drawTrack();
+        state.pickups.forEach(drawCoin);
+        state.obstacles.forEach(drawObstacle);
+        state.sparks.forEach((spark) => {
+          ctx.globalAlpha = Math.max(0, spark.life * 2.4);
+          ctx.fillStyle = "#ffe66d";
+          ctx.beginPath();
+          ctx.arc(spark.x + Math.random() * 18 - 9, spark.y + Math.random() * 18 - 9, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        });
+        drawPlayer();
+        if (state.paused) {
+          ctx.fillStyle = "rgba(4, 10, 17, 0.42)";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = "#f7fbff";
+          ctx.font = "900 54px Segoe UI, Arial";
+          ctx.textAlign = "center";
+          ctx.fillText("PAUSED", canvas.width / 2, canvas.height / 2);
+        }
+      }
+
+      function loop(now, runId) {
+        if (!state.running || runId !== state.runId) return;
+        const dt = Math.min(0.033, (now - state.lastTime) / 1000 || 0);
+        state.lastTime = now;
+        if (!state.paused) update(dt);
+        draw();
+        if (state.running) requestAnimationFrame((time) => loop(time, runId));
+      }
+
+      startButton.addEventListener("click", reset);
+      restartButton.addEventListener("click", reset);
+      pauseButton.addEventListener("click", () => {
+        if (!state.running) return;
+        state.paused = !state.paused;
+        pauseButton.textContent = state.paused ? ">" : "II";
+      });
+
+      document.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if (["arrowleft", "a"].includes(key)) command("left");
+        if (["arrowright", "d"].includes(key)) command("right");
+        if (["arrowup", "w", " "].includes(key)) command("jump");
+        if (["arrowdown", "s"].includes(key)) command("slide");
+        if (key === "p") pauseButton.click();
+        if (key === "r") reset();
+      });
+
+      document.querySelectorAll("[data-control]").forEach((button) => {
+        button.addEventListener("pointerdown", () => command(button.dataset.control));
+      });
+
+      let touchStart = null;
+      canvas.addEventListener("pointerdown", (event) => {
+        touchStart = { x: event.clientX, y: event.clientY };
+      });
+      canvas.addEventListener("pointerup", (event) => {
+        if (!touchStart) return;
+        const dx = event.clientX - touchStart.x;
+        const dy = event.clientY - touchStart.y;
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 24) command(dx > 0 ? "right" : "left");
+        if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 24) command(dy > 0 ? "slide" : "jump");
+        touchStart = null;
+      });
+
+      drawTrack();
+      drawPlayer();
+    </script>
+  </body>
+</html>

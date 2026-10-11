@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SID Assistant</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main class="sid-shell">
+      <section class="command-deck" aria-label="SID assistant">
+        <div class="topbar">
+          <div>
+            <p class="eyebrow">Systems Interface Director</p>
+            <h1>SID</h1>
+          </div>
+          <div class="status-pill" id="statusPill">Offline brain ready</div>
+        </div>
+
+        <div class="stage">
+          <div class="sid-core" aria-hidden="true">
+            <div class="halo halo-a"></div>
+            <div class="halo halo-b"></div>
+            <div class="faceplate">
+              <div class="visor"></div>
+              <div class="pulse-ring"></div>
+            </div>
+          </div>
+          <div class="readout">
+            <p id="sidMood">Standing by</p>
+            <strong id="sidLine">Hello. I am SID. Tell me the mission.</strong>
+          </div>
+        </div>
+
+        <form class="composer" id="commandForm">
+          <button class="icon-button" id="micButton" type="button" title="Voice input" aria-label="Voice input">●</button>
+          <input id="commandInput" autocomplete="off" placeholder="Ask SID to plan work, open apps, remember notes, or brief your day..." />
+          <button type="submit">Send</button>
+        </form>
+      </section>
+
+      <aside class="side-panel" aria-label="Assistant workspace">
+        <nav class="tabs" aria-label="SID panels">
+          <button class="active" type="button" data-panel="chat">Chat</button>
+          <button type="button" data-panel="tools">Tools</button>
+          <button type="button" data-panel="memory">Memory</button>
+          <button type="button" data-panel="plan">Plan</button>
+        </nav>
+
+        <section class="panel active" id="chatPanel">
+          <div class="chat-log" id="chatLog"></div>
+        </section>
+
+        <section class="panel" id="toolsPanel">
+          <div class="tool-grid">
+            <button type="button" data-quick="open calculator">Calculator</button>
+            <button type="button" data-quick="open notepad">Notepad</button>
+            <button type="button" data-quick="open explorer">Files</button>
+            <button type="button" data-quick="system info">System</button>
+            <button type="button" data-quick="open https://chatgpt.com">ChatGPT</button>
+            <button type="button" data-quick="what can you do">Capabilities</button>
+          </div>
+        </section>
+
+        <section class="panel" id="memoryPanel">
+          <div class="memory-list" id="memoryList"></div>
+        </section>
+
+        <section class="panel" id="planPanel">
+          <div class="mission-list" id="missionList"></div>
+        </section>
+      </aside>
+    </main>
+
+    <div class="permission-modal" id="permissionModal" hidden>
+      <div class="permission-card">
+        <p class="eyebrow">Permission required</p>
+        <h2 id="permissionTitle">Allow SID?</h2>
+        <p id="permissionText"></p>
+        <div class="modal-actions">
+          <button type="button" id="denyAction">Deny</button>
+          <button type="button" id="allowAction">Allow</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="./src/app.js"></script>
+  </body>
+</html>

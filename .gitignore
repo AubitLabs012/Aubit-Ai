@@ -1,0 +1,12 @@
+node_modules/
+dist/
+dist-*/
+tmp/
+.DS_Store
+.diag-result.json
+*.log
+backend/.env
+backend/.venv/
+backend/storage/uploads/
+__pycache__/
+*.py[cod]

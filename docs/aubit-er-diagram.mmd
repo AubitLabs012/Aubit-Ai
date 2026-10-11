@@ -1,0 +1,39 @@
+erDiagram
+    USERS ||--o{ GAME_EVENTS : "plays / earns rewards"
+    USERS ||--o{ AI_RESPONSES : "requests"
+
+    USERS {
+        string id PK
+        string username
+        string username_lc UK
+        string role
+        string display_name
+        string password_hash
+        int coins
+        int stars
+        int games_played
+    }
+
+    GAME_EVENTS {
+        string user_id FK
+        string game_type
+        string result
+        int score
+        object rewards
+        string processed_at
+    }
+
+    AI_RESPONSES {
+        string request_id PK
+        string user_id FK
+        string response
+        string transcript
+        string voice_preview
+        boolean cached
+        string provider
+        string model
+        string content_type
+        number duration
+        string language
+        string generated_at
+    }

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aubit Desktop Widget</title>
+    <link rel="stylesheet" href="./src/widget.css" />
+  </head>
+  <body data-expression="awake" data-shell-mode="active">
+    <main class="widget-app">
+      <div class="widget-drag-zone" aria-hidden="true"></div>
+      <div class="widget-bubble is-visible" id="widgetBubble">Hi, how are you today? I'm here with you for long talks, quick help, or a laugh whenever you need one.</div>
+
+      <button class="widget-shell-button" id="widgetShellButton" type="button" aria-label="Wake Aubit desktop widget">
+        <span class="widget-glow widget-glow-left" aria-hidden="true"></span>
+        <span class="widget-glow widget-glow-right" aria-hidden="true"></span>
+        <img
+          class="widget-shell-image"
+          src="./images/Aubit-Desktop-Widget-Compact.png"
+          alt="Aubit desktop widget shell"
+          draggable="false"
+        />
+        <div class="widget-visor" aria-hidden="true">
+          <span class="widget-eye widget-eye-left">
+            <span class="widget-eye-loader"></span>
+          </span>
+          <span class="widget-eye widget-eye-right">
+            <span class="widget-eye-loader"></span>
+          </span>
+          <span class="widget-core-glow"></span>
+        </div>
+      </button>
+    </main>
+
+    <script defer src="./src/widget.js"></script>
+  </body>
+</html>

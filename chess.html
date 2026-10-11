@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aubit AI Chess</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="./src/assets/favicon-aubit-face-64.png?v=20260414-robotface-v2" />
+  <style>
+    :root {
+      --page-bg: #353535;
+      --shell-bg: #17181e;
+      --shell-edge: #2a2b31;
+      --surface: #242632;
+      --surface-2: #2a2d3a;
+      --surface-3: #1d1f2a;
+      --ink: #f5f2eb;
+      --muted: #b9bbc8;
+      --line: rgba(255, 255, 255, 0.09);
+      --frame: #3a2613;
+      --board-light: #9f5429;
+      --board-dark: #6d3013;
+      --board-rim: #4d2b15;
+      --board-label: #e0c692;
+      --selected: rgba(255, 215, 102, 0.92);
+      --hint-dot: rgba(255, 244, 211, 0.36);
+      --capture-ring: rgba(255, 238, 198, 0.6);
+      --last-move: rgba(255, 232, 185, 0.18);
+      --accent: #ff9b43;
+      --square-size: clamp(44px, 7.6vw, 78px);
+      --label-size: clamp(18px, 3.2vw, 26px);
+      --label-gap: 10px;
+      --piece-size: calc(var(--square-size) - 8px);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 18px;
+      background:
+        radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 34%),
+        var(--page-bg);
+      color: var(--ink);
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .chess-app {
+      width: min(100%, 1180px);
+      padding: 16px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.88fr);
+      gap: 18px;
+      align-items: start;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
+        var(--shell-bg);
+      border: 1px solid var(--shell-edge);
+      border-radius: 30px;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        0 24px 80px rgba(0, 0, 0, 0.38);
+    }
+
+    .left-column,
+    .right-column {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
+      border-radius: 18px;
+    }
+
+    .status-card {
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .status-main {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .status-eyebrow,
+    .panel-eyebrow {
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .status-title {
+      font-size: clamp(1rem, 1.8vw, 1.35rem);
+      line-height: 1.2;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .status-detail,
+    .engine-meta {
+      font-size: 0.94rem;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .status-side {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .turn-badge {
+      padding: 8px 14px;
+      min-width: 122px;
+      text-align: center;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.08);
+      color: #ffffff;
+      font-size: 0.84rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .turn-badge.black-turn {
+      background: rgba(255, 167, 84, 0.18);
+      border-color: rgba(255, 167, 84, 0.34);
+    }
+
+    .control-button {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.06);
+      color: #ffffff;
+      padding: 9px 13px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+      border-radius: 12px;
+    }
+
+    .control-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.2);
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .board-card {
+      padding: 14px;
+      background:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.1), transparent 18%),
+        #1b1b1f;
+    }
+
+    .board-shell {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--label-gap);
+      padding: 6px 6px 0 0;
+    }
+
+    .rank-column,
+    .file-row {
+      display: grid;
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 700;
+      color: var(--board-label);
+      user-select: none;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.56);
+    }
+
+    .rank-column {
+      grid-template-rows: repeat(8, var(--square-size));
+      align-items: center;
+      justify-items: center;
+      width: var(--label-size);
+      padding-top: 2px;
+    }
+
+    .file-row {
+      grid-template-columns: repeat(8, var(--square-size));
+      align-items: center;
+      justify-items: center;
+      height: var(--label-size);
+      margin-top: 8px;
+      padding-left: 2px;
+    }
+
+    .rank-column span,
+    .file-row span {
+      font-size: var(--label-size);
+      line-height: 1;
+    }
+
+    .board-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(8, var(--square-size));
+      grid-template-rows: repeat(8, var(--square-size));
+      border: 8px solid var(--board-rim);
+      border-radius: 6px;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.05), transparent 40%),
+        var(--board-rim);
+      box-shadow:
+        inset 0 0 0 2px rgba(255, 255, 255, 0.05),
+        0 14px 30px rgba(0, 0, 0, 0.28);
+    }
+
+    .square {
+      width: var(--square-size);
+      height: var(--square-size);
+      border: 0;
+      padding: 0;
+      appearance: none;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .square.light {
+      background:
+        linear-gradient(135deg, rgba(255, 210, 154, 0.18), transparent 38%),
+        linear-gradient(45deg, rgba(0, 0, 0, 0.08), transparent 36%),
+        var(--board-light);
+    }
+
+    .square.dark {
+      background:
+        linear-gradient(135deg, rgba(255, 199, 121, 0.12), transparent 34%),
+        linear-gradient(45deg, rgba(0, 0, 0, 0.12), transparent 40%),
+        var(--board-dark);
+    }
+
+    .square.last-move {
+      box-shadow: inset 0 0 0 999px var(--last-move);
+    }
+
+    .square.selected {
+      outline: 4px solid var(--selected);
+      outline-offset: -4px;
+    }
+
+    .square.hint::after {
+      content: "";
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--hint-dot);
+      pointer-events: none;
+    }
+
+    .square.capture-hint::after {
+      width: calc(var(--square-size) - 12px);
+      height: calc(var(--square-size) - 12px);
+      background: transparent;
+      border: 5px solid var(--capture-ring);
+    }
+
+    .piece {
+      width: var(--piece-size);
+      height: var(--piece-size);
+      object-fit: contain;
+      position: relative;
+      z-index: 1;
+      user-select: none;
+      -webkit-user-drag: none;
+      transition: transform 0.12s ease;
+    }
+
+    .square:hover .piece {
+      transform: scale(1.04);
+    }
+
+    .board-footer {
+      margin-top: 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .toolbar-card,
+    .theme-card,
+    .profile-card {
+      padding: 14px;
+    }
+
+    .toolbar-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .toolbar-button {
+      min-height: 62px;
+      display: grid;
+      gap: 4px;
+      align-content: center;
+      justify-items: center;
+      text-align: center;
+      background: var(--surface-2);
+    }
+
+    .toolbar-button strong {
+      font-size: 0.92rem;
+    }
+
+    .toolbar-button span {
+      color: var(--muted);
+      font-size: 0.76rem;
+    }
+
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .theme-option {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: var(--surface-2);
+      padding: 8px 8px 10px;
+      border-radius: 14px;
+      color: #ffffff;
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+    }
+
+    .theme-option:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.18);
+    }
+
+    .theme-option.active {
+      border-color: rgba(255, 187, 113, 0.78);
+      box-shadow: 0 0 0 1px rgba(255, 187, 113, 0.28) inset;
+    }
+
+    .theme-swatch {
+      height: 36px;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: linear-gradient(90deg, var(--swatch-light), var(--swatch-light) 50%, var(--swatch-dark) 50%, var(--swatch-dark));
+    }
+
+    .theme-name {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .profile-header {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+
+    .profile-copy {
+      font-size: 0.94rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .profiles-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .profile-option {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: var(--surface-2);
+      padding: 10px;
+      cursor: pointer;
+      text-align: left;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+      border-radius: 14px;
+    }
+
+    .profile-option:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+      border-color: var(--accent, #333333);
+      background: #313544;
+    }
+
+    .profile-option.active {
+      border-color: var(--accent, #333333);
+      background: #313544;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+    }
+
+    .profile-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .gm-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.86rem;
+      font-weight: 900;
+      color: #ffffff;
+      background: linear-gradient(135deg, var(--accent, #333333), #111111);
+      border: 2px solid rgba(255, 255, 255, 0.8);
+      box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.14);
+      flex: 0 0 auto;
+    }
+
+    .profile-name {
+      font-weight: 800;
+      line-height: 1.2;
+      color: #ffffff;
+    }
+
+    .profile-style {
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.2;
+    }
+
+    .profile-meta {
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.35;
+    }
+
+    .engine-card {
+      padding: 14px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+    }
+
+    .engine-card .panel-eyebrow {
+      margin-bottom: 6px;
+    }
+
+    .engine-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+      color: #ffffff;
+    }
+
+    .footer-note {
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.45;
+      padding: 2px 4px;
+    }
+
+    body.embed {
+      padding: 10px;
+      --square-size: clamp(36px, 9.2vw, 58px);
+      --label-size: clamp(16px, 3vw, 26px);
+      --label-gap: 8px;
+    }
+
+    body.embed .chess-app {
+      grid-template-columns: 1fr;
+      border-radius: 24px;
+    }
+
+    body.embed .right-column {
+      order: -1;
+    }
+
+    body.embed .profiles-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      overflow-x: auto;
+    }
+
+    body.embed .theme-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    body.embed .profile-option {
+      min-width: 132px;
+    }
+
+    body.embed .status-card,
+    body.embed .toolbar-card,
+    body.embed .theme-card,
+    body.embed .board-card,
+    body.embed .profile-card,
+    body.embed .engine-card {
+      padding: 10px 12px;
+    }
+
+    @media (max-width: 980px) {
+      .chess-app {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .status-card {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .status-side {
+        justify-content: space-between;
+      }
+
+      .profiles-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .theme-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      body.embed .profiles-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="chess-app">
+    <section class="left-column">
+      <section class="panel status-card" aria-live="polite">
+        <div class="status-main">
+          <div class="status-eyebrow">Aubit AI Chess</div>
+          <div class="status-title" id="statusTitle">Loading Stockfish 18...</div>
+          <div class="status-detail" id="statusDetail">Booting the local chess engine and preparing your opponent.</div>
+        </div>
+        <div class="status-side">
+          <div class="turn-badge" id="turnBadge">White turn</div>
+          <button class="control-button" id="resetButton" type="button">New Game</button>
+        </div>
+      </section>
+
+      <section class="panel board-card">
+        <div class="board-shell" aria-label="Aubit chess board">
+          <div class="rank-column" aria-hidden="true">
+            <span>8</span>
+            <span>7</span>
+            <span>6</span>
+            <span>5</span>
+            <span>4</span>
+            <span>3</span>
+            <span>2</span>
+            <span>1</span>
+          </div>
+
+          <div class="board-stack">
+            <div id="board" role="grid" aria-label="Chess board"></div>
+            <div class="file-row" aria-hidden="true">
+              <span>a</span>
+              <span>b</span>
+              <span>c</span>
+              <span>d</span>
+              <span>e</span>
+              <span>f</span>
+              <span>g</span>
+              <span>h</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="board-footer">
+          <span id="boardFooterLeft">You play White. Aubit plays Black.</span>
+          <span id="boardFooterRight">Engine loading...</span>
+        </div>
+      </section>
+    </section>
+
+    <aside class="right-column">
+      <section class="panel toolbar-card">
+        <div class="panel-eyebrow">Quick Controls</div>
+        <div class="toolbar-grid">
+          <button class="control-button toolbar-button" id="backButton" type="button">
+            <strong>Back</strong>
+            <span>Game Hub</span>
+          </button>
+          <button class="control-button toolbar-button" id="newGameButton" type="button">
+            <strong>Restart</strong>
+            <span>Fresh board</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="panel theme-card">
+        <div class="panel-eyebrow">Board Themes</div>
+        <div class="profile-copy">
+          Switch the board colors anytime. The default look now follows the wooden chess app style from your reference image.
+        </div>
+        <div class="theme-grid" id="themeGrid"></div>
+      </section>
+
+      <section class="panel profile-card">
+        <div class="profile-header">
+          <div class="panel-eyebrow">Choose Opponent</div>
+          <div class="profile-copy">
+            Switch Aubit between pure Stockfish mode and grandmaster-inspired play styles. Each badge acts like a logo button for that opponent profile.
+          </div>
+        </div>
+        <div class="profiles-grid" id="profileGrid"></div>
+      </section>
+
+      <section class="panel engine-card">
+        <div class="panel-eyebrow">Engine Mode</div>
+        <div class="engine-title" id="engineTitle">Stockfish 18 local worker</div>
+        <div class="engine-meta" id="engineMeta">
+          Initializing the local WASM engine. After startup, Aubit will search each reply with Stockfish and then apply the selected style profile.
+        </div>
+      </section>
+
+      <div class="footer-note">
+        The board theme matches your blue reference image. Grandmaster badges here are custom monogram logos inside the UI, while the move strength comes from a bundled local Stockfish engine.
+      </div>
+    </aside>
+  </main>
+
+  <script type="module">
+    import { Chess } from "./src/vendor/chess.mjs";
+
+    const isEmbedMode = new URLSearchParams(window.location.search).get("embed") === "1";
+    if (isEmbedMode) {
+      document.body.classList.add("embed");
+    }
+
+    const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
+    const PIECE_IMAGES = {
+      wp: "4/45/Chess_plt45.svg",
+      wr: "7/72/Chess_rlt45.svg",
+      wn: "7/70/Chess_nlt45.svg",
+      wb: "b/b1/Chess_blt45.svg",
+      wq: "1/15/Chess_qlt45.svg",
+      wk: "4/42/Chess_klt45.svg",
+      bp: "c/c7/Chess_pdt45.svg",
+      br: "f/ff/Chess_rdt45.svg",
+      bn: "e/ef/Chess_ndt45.svg",
+      bb: "9/98/Chess_bdt45.svg",
+      bq: "4/47/Chess_qdt45.svg",
+      bk: "f/f0/Chess_kdt45.svg",
+    };
+    const PIECE_NAMES = {
+      p: "Pawn",
+      n: "Knight",
+      b: "Bishop",
+      r: "Rook",
+      q: "Queen",
+      k: "King",
+    };
+    const PIECE_VALUES = {
+      p: 100,
+      n: 320,
+      b: 330,
+      r: 500,
+      q: 900,
+      k: 0,
+    };
+    const CENTER_SQUARES = new Set(["d4", "e4", "d5", "e5"]);
+    const EXTENDED_CENTER = new Set(["c3", "d3", "e3", "f3", "c4", "d4", "e4", "f4", "c5", "d5", "e5", "f5", "c6", "d6", "e6", "f6"]);
+    const BOARD_THEMES = [
+      {
+        id: "walnut",
+        name: "Walnut",
+        pageBg: "#353535",
+        shellBg: "#17181e",
+        surface: "#242632",
+        surface2: "#2a2d3a",
+        line: "rgba(255, 255, 255, 0.09)",
+        boardLight: "#9f5429",
+        boardDark: "#6d3013",
+        boardRim: "#4d2b15",
+        boardLabel: "#e0c692",
+      },
+      {
+        id: "mahogany",
+        name: "Mahogany",
+        pageBg: "#3a302e",
+        shellBg: "#19161a",
+        surface: "#2a2329",
+        surface2: "#342a31",
+        line: "rgba(255, 235, 220, 0.1)",
+        boardLight: "#b36539",
+        boardDark: "#713115",
+        boardRim: "#55301a",
+        boardLabel: "#f0c791",
+      },
+      {
+        id: "midnight",
+        name: "Midnight",
+        pageBg: "#232735",
+        shellBg: "#11151f",
+        surface: "#1c2432",
+        surface2: "#243044",
+        line: "rgba(186, 221, 255, 0.1)",
+        boardLight: "#668db7",
+        boardDark: "#284664",
+        boardRim: "#1d3044",
+        boardLabel: "#d5e6ff",
+      },
+      {
+        id: "emerald",
+        name: "Emerald",
+        pageBg: "#26322c",
+        shellBg: "#141c18",
+        surface: "#202b24",
+        surface2: "#2a382f",
+        line: "rgba(216, 255, 230, 0.1)",
+        boardLight: "#88a86e",
+        boardDark: "#446146",
+        boardRim: "#324632",
+        boardLabel: "#eef1d2",
+      },
+      {
+        id: "sandstone",
+        name: "Sand",
+        pageBg: "#413830",
+        shellBg: "#211d19",
+        surface: "#2e2924",
+        surface2: "#3a342c",
+        line: "rgba(255, 241, 219, 0.1)",
+        boardLight: "#d3a46d",
+        boardDark: "#8f6036",
+        boardRim: "#664526",
+        boardLabel: "#fff0cc",
+      },
+    ];
+
+    const PROFILES = [
+      {
+        id: "stockfish",
+        badge: "SF",
+        name: "Stockfish 18",
+        tagline: "Pure engine mode",
+        summary: "Top-line engine strength with no human-style filtering.",
+        accent: "#111111",
+        limitStrength: false,
+        elo: 3190,
+        skillLevel: 20,
+        moveTime: 650,
+        multiPv: 1,
+        style: "engine",
+        evalWindow: 0,
+        gapPenalty: 10,
+        jitter: 0,
+        weights: {},
+      },
+      {
+        id: "carlsen",
+        badge: "MC",
+        name: "Magnus Carlsen",
+        tagline: "Universal pressure",
+        summary: "Best-move discipline with squeeze, space, and endgame pressure.",
+        accent: "#c1a052",
+        limitStrength: true,
+        elo: 2882,
+        skillLevel: 20,
+        moveTime: 620,
+        multiPv: 4,
+        style: "universal",
+        evalWindow: 65,
+        gapPenalty: 1.25,
+        jitter: 6,
+        weights: { center: 10, development: 9, quiet: 10, simplify: 8, space: 8, check: 6, capture: 3, castle: 12, queenPenalty: 8 },
+      },
+      {
+        id: "kasparov",
+        badge: "GK",
+        name: "Garry Kasparov",
+        tagline: "Dynamic attack",
+        summary: "Prefers initiative, central breaks, and active attacking lines.",
+        accent: "#dc6a20",
+        limitStrength: true,
+        elo: 2851,
+        skillLevel: 20,
+        moveTime: 660,
+        multiPv: 5,
+        style: "attacking",
+        evalWindow: 95,
+        gapPenalty: 1.05,
+        jitter: 10,
+        weights: { center: 11, development: 8, quiet: 1, simplify: -2, space: 7, check: 18, capture: 11, castle: 8, queenPenalty: 2, flank: 6 },
+      },
+      {
+        id: "tal",
+        badge: "MT",
+        name: "Mikhail Tal",
+        tagline: "Tactical chaos",
+        summary: "More willing to pick sharp, forcing, and sacrificial-looking continuations.",
+        accent: "#d13c3c",
+        limitStrength: true,
+        elo: 2750,
+        skillLevel: 19,
+        moveTime: 560,
+        multiPv: 6,
+        style: "tactical",
+        evalWindow: 120,
+        gapPenalty: 0.9,
+        jitter: 16,
+        weights: { center: 6, development: 5, quiet: -4, simplify: -8, space: 6, check: 24, capture: 15, castle: 2, queenPenalty: -3, flank: 10 },
+      },
+      {
+        id: "fischer",
+        badge: "BF",
+        name: "Bobby Fischer",
+        tagline: "Classical force",
+        summary: "Direct, principled chess with strong development and central control.",
+        accent: "#325fb5",
+        limitStrength: true,
+        elo: 2785,
+        skillLevel: 20,
+        moveTime: 640,
+        multiPv: 4,
+        style: "classical",
+        evalWindow: 70,
+        gapPenalty: 1.15,
+        jitter: 7,
+        weights: { center: 13, development: 12, quiet: 6, simplify: 4, space: 7, check: 8, capture: 7, castle: 10, queenPenalty: 6 },
+      },
+      {
+        id: "karpov",
+        badge: "AK",
+        name: "Anatoly Karpov",
+        tagline: "Positional control",
+        summary: "Leans toward restraint, king safety, and squeezing down counterplay.",
+        accent: "#4e7f53",
+        limitStrength: true,
+        elo: 2780,
+        skillLevel: 20,
+        moveTime: 610,
+        multiPv: 4,
+        style: "positional",
+        evalWindow: 60,
+        gapPenalty: 1.25,
+        jitter: 5,
+        weights: { center: 9, development: 8, quiet: 14, simplify: 12, space: 6, check: 4, capture: 2, castle: 15, queenPenalty: 10 },
+      },
+      {
+        id: "anand",
+        badge: "VA",
+        name: "Viswanathan Anand",
+        tagline: "Fast initiative",
+        summary: "Balanced but active, with fast coordination and tactical readiness.",
+        accent: "#6b54c8",
+        limitStrength: true,
+        elo: 2788,
+        skillLevel: 20,
+        moveTime: 540,
+        multiPv: 5,
+        style: "dynamic",
+        evalWindow: 85,
+        gapPenalty: 1.1,
+        jitter: 10,
+        weights: { center: 10, development: 11, quiet: 4, simplify: 2, space: 7, check: 12, capture: 8, castle: 10, queenPenalty: 3, flank: 5 },
+      },
+      {
+        id: "polgar",
+        badge: "JP",
+        name: "Judit Polgar",
+        tagline: "Fearless attack",
+        summary: "Aggressive profile that hunts initiative and tactical pressure.",
+        accent: "#d84aa2",
+        limitStrength: true,
+        elo: 2735,
+        skillLevel: 19,
+        moveTime: 570,
+        multiPv: 5,
+        style: "attack",
+        evalWindow: 100,
+        gapPenalty: 1,
+        jitter: 14,
+        weights: { center: 9, development: 6, quiet: -2, simplify: -4, space: 7, check: 20, capture: 13, castle: 7, queenPenalty: 0, flank: 8 },
+      },
+      {
+        id: "capablanca",
+        badge: "JC",
+        name: "Capablanca",
+        tagline: "Technical clarity",
+        summary: "Simpler lines, elegant piece placement, and clean technical conversion.",
+        accent: "#8c6d4e",
+        limitStrength: true,
+        elo: 2725,
+        skillLevel: 19,
+        moveTime: 600,
+        multiPv: 4,
+        style: "technical",
+        evalWindow: 65,
+        gapPenalty: 1.2,
+        jitter: 5,
+        weights: { center: 8, development: 8, quiet: 11, simplify: 16, space: 5, check: 3, capture: 3, castle: 11, queenPenalty: 8 },
+      },
+    ];
+
+    const boardEl = document.getElementById("board");
+    const turnBadge = document.getElementById("turnBadge");
+    const statusTitle = document.getElementById("statusTitle");
+    const statusDetail = document.getElementById("statusDetail");
+    const resetButton = document.getElementById("resetButton");
+    const newGameButton = document.getElementById("newGameButton");
+    const backButton = document.getElementById("backButton");
+    const profileGrid = document.getElementById("profileGrid");
+    const themeGrid = document.getElementById("themeGrid");
+    const engineTitle = document.getElementById("engineTitle");
+    const engineMeta = document.getElementById("engineMeta");
+    const boardFooterLeft = document.getElementById("boardFooterLeft");
+    const boardFooterRight = document.getElementById("boardFooterRight");
+
+    const playerColor = "w";
+    const aiColor = "b";
+    const workerUrl = new URL("./src/vendor/stockfish-18-lite-single.js", window.location.href);
+
+    let chess = new Chess();
+    let selectedSquare = null;
+    let validMoves = [];
+    let lastMove = null;
+    let aiThinking = false;
+    let engineReady = false;
+    let engineError = null;
+    let lastActionText = "You play White. Aubit uses Stockfish as Black.";
+    let activeProfile = PROFILES[0];
+    let activeTheme = BOARD_THEMES[0];
+    let aiRequestId = 0;
+
+    class StockfishController {
+      constructor(url) {
+        this.url = url;
+        this.worker = null;
+        this.initPromise = null;
+        this.initResolver = null;
+        this.initRejecter = null;
+        this.readyWaiters = [];
+        this.currentProfileId = null;
+        this.searchState = null;
+      }
+
+      async init() {
+        if (this.initPromise) {
+          return this.initPromise;
+        }
+
+        this.initPromise = new Promise((resolve, reject) => {
+          this.initResolver = resolve;
+          this.initRejecter = reject;
+
+          try {
+            this.worker = new Worker(this.url, { name: "aubit-stockfish" });
+          } catch (error) {
+            reject(error);
+            return;
+          }
+
+          this.worker.addEventListener("message", (event) => {
+            this.handleMessage(String(event.data || ""));
+          });
+
+          this.worker.addEventListener("error", (event) => {
+            const error = event.error || new Error("Stockfish worker failed to start.");
+            if (this.initRejecter) {
+              this.initRejecter(error);
+            }
+          }, { once: true });
+
+          this.send("uci");
+        });
+
+        return this.initPromise;
+      }
+
+      send(command) {
+        this.worker?.postMessage(command);
+      }
+
+      async waitReady() {
+        await this.init();
+        return new Promise((resolve) => {
+          this.readyWaiters.push(resolve);
+          this.send("isready");
+        });
+      }
+
+      async configure(profile) {
+        await this.init();
+        this.send(`setoption name Threads value 1`);
+        this.send(`setoption name Hash value ${isEmbedMode ? 16 : 32}`);
+        this.send(`setoption name UCI_ShowWDL value true`);
+        this.send(`setoption name Skill Level value ${profile.skillLevel}`);
+        this.send(`setoption name MultiPV value ${profile.multiPv}`);
+        this.send(`setoption name UCI_LimitStrength value ${profile.limitStrength ? "true" : "false"}`);
+        if (profile.limitStrength) {
+          this.send(`setoption name UCI_Elo value ${profile.elo}`);
+        }
+        this.currentProfileId = profile.id;
+        await this.waitReady();
+      }
+
+      async newGame(profile) {
+        this.send("stop");
+        await this.configure(profile);
+        this.send("ucinewgame");
+        await this.waitReady();
+      }
+
+      async search(fen, profile) {
+        await this.configure(profile);
+
+        if (this.searchState) {
+          this.send("stop");
+        }
+
+        return new Promise((resolve) => {
+          this.searchState = {
+            resolve,
+            candidates: new Map(),
+          };
+
+          this.send(`position fen ${fen}`);
+          this.send(`go movetime ${profile.moveTime}`);
+        });
+      }
+
+      handleMessage(line) {
+        if (!line) {
+          return;
+        }
+
+        if (line === "uciok") {
+          this.send(`setoption name Threads value 1`);
+          this.send(`setoption name Hash value ${isEmbedMode ? 16 : 32}`);
+          this.send(`setoption name UCI_ShowWDL value true`);
+          this.send("isready");
+          return;
+        }
+
+        if (line === "readyok") {
+          if (this.initResolver) {
+            this.initResolver();
+            this.initResolver = null;
+            this.initRejecter = null;
+          }
+          const waiters = this.readyWaiters.splice(0);
+          waiters.forEach((resolve) => resolve());
+          return;
+        }
+
+        if (this.searchState && line.startsWith("info ")) {
+          const candidate = parseInfoLine(line);
+          if (candidate) {
+            this.searchState.candidates.set(candidate.uci, candidate);
+          }
+          return;
+        }
+
+        if (this.searchState && line.startsWith("bestmove ")) {
+          const parts = line.trim().split(/\s+/);
+          const payload = {
+            bestmove: parts[1],
+            ponder: parts[3] || null,
+            candidates: Array.from(this.searchState.candidates.values()),
+          };
+          const { resolve } = this.searchState;
+          this.searchState = null;
+          resolve(payload);
+        }
+      }
+
+      dispose() {
+        if (!this.worker) {
+          return;
+        }
+        try {
+          this.send("quit");
+        } catch (_error) {
+          // Ignore shutdown failures.
+        }
+        this.worker.terminate();
+        this.worker = null;
+      }
+    }
+
+    const stockfish = new StockfishController(workerUrl);
+
+    function getPieceImage(piece) {
+      const color = piece.color === "w" ? "w" : "b";
+      return `https://upload.wikimedia.org/wikipedia/commons/${PIECE_IMAGES[color + piece.type]}`;
+    }
+
+    function squareName(row, col) {
+      return `${FILES[col]}${8 - row}`;
+    }
+
+    function moveToUci(move) {
+      return `${move.from}${move.to}${move.promotion || ""}`;
+    }
+
+    function parseInfoLine(line) {
+      const pvMatch = line.match(/\bpv\s+(.+)$/);
+      const scoreMatch = line.match(/\bscore\s+(cp|mate)\s+(-?\d+)/);
+      if (!pvMatch || !scoreMatch) {
+        return null;
+      }
+
+      const multipvMatch = line.match(/\bmultipv\s+(\d+)/);
+      const depthMatch = line.match(/\bdepth\s+(\d+)/);
+      const pv = pvMatch[1].trim().split(/\s+/);
+      const uci = pv[0];
+      if (!uci || uci === "(none)") {
+        return null;
+      }
+
+      return {
+        uci,
+        pv,
+        multipv: multipvMatch ? Number(multipvMatch[1]) : 1,
+        depth: depthMatch ? Number(depthMatch[1]) : 0,
+        scoreType: scoreMatch[1],
+        scoreValue: Number(scoreMatch[2]),
+      };
+    }
+
+    function normalizeEngineScore(candidate) {
+      if (candidate.scoreType === "mate") {
+        return candidate.scoreValue > 0 ? 200000 - candidate.scoreValue * 1000 : -200000 - candidate.scoreValue * 1000;
+      }
+      return candidate.scoreValue;
+    }
+
+    function deterministicNoise(seed) {
+      let hash = 0;
+      for (let index = 0; index < seed.length; index += 1) {
+        hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
+      }
+      return (hash % 1000) / 1000;
+    }
+
+    function isDevelopmentMove(move, historyLength) {
+      if (historyLength >= 14) {
+        return 0;
+      }
+      if (move.piece === "n" && (move.from === "b8" || move.from === "g8")) {
+        return 1;
+      }
+      if (move.piece === "b" && (move.from === "c8" || move.from === "f8")) {
+        return 1;
+      }
+      if (move.piece === "p" && ["c7", "d7", "e7", "f7"].includes(move.from)) {
+        return 1;
+      }
+      return 0;
+    }
+
+    function moveFeatureSummary(game, move) {
+      const next = new Chess(game.fen());
+      next.move({ from: move.from, to: move.to, promotion: move.promotion || "q" });
+
+      const rankForward = Number(move.from[1]) - Number(move.to[1]);
+      const quiet = !move.captured && !move.san.includes("+") && !move.san.includes("#");
+      const queenMoveEarly = move.piece === "q" && game.history().length < 14;
+      const isCastle = move.flags.includes("k") || move.flags.includes("q");
+
+      return {
+        captureValue: move.captured ? (PIECE_VALUES[move.captured] || 0) : 0,
+        isCheck: move.san.includes("+") || move.san.includes("#") || next.isCheck(),
+        isMate: move.san.includes("#") || next.isCheckmate(),
+        isCastle,
+        quiet,
+        center: CENTER_SQUARES.has(move.to) ? 1 : 0,
+        extendedCenter: EXTENDED_CENTER.has(move.to) ? 1 : 0,
+        development: isDevelopmentMove(move, game.history().length),
+        simplify: move.captured ? 1 : 0,
+        space: move.piece === "p" ? Math.max(0, rankForward) : 0,
+        queenPenalty: queenMoveEarly ? 1 : 0,
+        flankAttack: ["f", "g", "h"].includes(move.to[0]) ? 1 : 0,
+      };
+    }
+
+    function chooseStyledMove(searchResult, profile) {
+      const legalMoves = chess.moves({ verbose: true });
+      const moveMap = new Map(legalMoves.map((move) => [moveToUci(move), move]));
+      const fallback = moveMap.get(searchResult.bestmove) || legalMoves[0] || null;
+      if (!fallback) {
+        return null;
+      }
+
+      if (profile.style === "engine") {
+        return fallback;
+      }
+
+      const candidates = searchResult.candidates
+        .filter((candidate) => moveMap.has(candidate.uci))
+        .map((candidate) => ({
+          ...candidate,
+          move: moveMap.get(candidate.uci),
+          score: normalizeEngineScore(candidate),
+        }))
+        .sort((left, right) => right.score - left.score || left.multipv - right.multipv);
+
+      if (!candidates.length) {
+        return fallback;
+      }
+
+      const bestScore = candidates[0].score;
+      const viable = candidates.filter((candidate) => {
+        if (candidate.scoreType === "mate") {
+          return true;
+        }
+        return bestScore - candidate.score <= profile.evalWindow;
+      });
+
+      let best = {
+        move: fallback,
+        score: -Infinity,
+      };
+
+      viable.forEach((candidate) => {
+        const features = moveFeatureSummary(chess, candidate.move);
+        const weights = profile.weights || {};
+        const heuristics =
+          features.center * (weights.center || 0) +
+          features.extendedCenter * Math.round((weights.center || 0) * 0.45) +
+          features.development * (weights.development || 0) +
+          features.space * (weights.space || 0) +
+          features.isCastle * (weights.castle || 0) +
+          features.isCheck * (weights.check || 0) +
+          features.captureValue * (weights.capture || 0) / 100 +
+          features.simplify * (weights.simplify || 0) +
+          features.flankAttack * (weights.flank || 0) +
+          features.quiet * (weights.quiet || 0) -
+          features.queenPenalty * (weights.queenPenalty || 0) +
+          (features.isMate ? 5000 : 0);
+
+        const evalPenalty = Math.max(0, bestScore - candidate.score) * profile.gapPenalty;
+        const jitter = deterministicNoise(`${candidate.uci}|${chess.fen()}|${profile.id}`) * (profile.jitter || 0);
+        const styledScore = heuristics - evalPenalty + jitter;
+
+        if (styledScore > best.score) {
+          best = {
+            move: candidate.move,
+            score: styledScore,
+          };
+        }
+      });
+
+      return best.move || fallback;
+    }
+
+    function describeMove(move) {
+      const piece = PIECE_NAMES[move.piece] || "Piece";
+      if (move.san === "O-O") {
+        return "castled kingside";
+      }
+      if (move.san === "O-O-O") {
+        return "castled queenside";
+      }
+      if (move.captured) {
+        return `${piece} captured on ${move.to}`;
+      }
+      if (move.promotion) {
+        return `${piece} moved to ${move.to} and promoted`;
+      }
+      return `${piece} moved to ${move.to}`;
+    }
+
+    function renderProfiles() {
+      profileGrid.innerHTML = "";
+
+      PROFILES.forEach((profile) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `profile-option${profile.id === activeProfile.id ? " active" : ""}`;
+        button.style.setProperty("--accent", profile.accent);
+
+        button.innerHTML = `
+          <div class="profile-top">
+            <span class="gm-logo" aria-hidden="true">${profile.badge}</span>
+            <div>
+              <div class="profile-name">${profile.name}</div>
+              <div class="profile-style">${profile.tagline}</div>
+            </div>
+          </div>
+          <div class="profile-meta">${profile.summary}</div>
+        `;
+
+        button.addEventListener("click", () => {
+          if (profile.id === activeProfile.id) {
+            return;
+          }
+          activeProfile = profile;
+          lastActionText = `Switched Aubit to ${profile.name} style. Starting a fresh game.`;
+          resetGame(true);
+        });
+
+        profileGrid.appendChild(button);
+      });
+    }
+
+    function applyTheme(theme) {
+      const root = document.documentElement;
+      root.style.setProperty("--page-bg", theme.pageBg);
+      root.style.setProperty("--shell-bg", theme.shellBg);
+      root.style.setProperty("--surface", theme.surface);
+      root.style.setProperty("--surface-2", theme.surface2);
+      root.style.setProperty("--line", theme.line);
+      root.style.setProperty("--board-light", theme.boardLight);
+      root.style.setProperty("--board-dark", theme.boardDark);
+      root.style.setProperty("--board-rim", theme.boardRim);
+      root.style.setProperty("--board-label", theme.boardLabel);
+    }
+
+    function renderThemeOptions() {
+      themeGrid.innerHTML = "";
+
+      BOARD_THEMES.forEach((theme) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `theme-option${theme.id === activeTheme.id ? " active" : ""}`;
+        button.style.setProperty("--swatch-light", theme.boardLight);
+        button.style.setProperty("--swatch-dark", theme.boardDark);
+        button.innerHTML = `
+          <div class="theme-swatch" aria-hidden="true"></div>
+          <span class="theme-name">${theme.name}</span>
+        `;
+        button.addEventListener("click", () => {
+          activeTheme = theme;
+          applyTheme(activeTheme);
+          render();
+        });
+        themeGrid.appendChild(button);
+      });
+    }
+
+    function goBackToGameHub() {
+      if (window.parent && window.parent !== window) {
+        const targetOrigin = window.location.origin && window.location.origin !== "null"
+          ? window.location.origin
+          : "*";
+        window.parent.postMessage(
+          {
+            type: "aubit-game-action",
+            action: "back-to-game-hub",
+          },
+          targetOrigin
+        );
+        return;
+      }
+
+      if (window.history.length > 1) {
+        window.history.back();
+        return;
+      }
+
+      window.location.href = "./index.html";
+    }
+
+    function awardGoldPoints(points) {
+      if (!isEmbedMode || !window.parent || window.parent === window) return;
+      const targetOrigin = window.location.origin && window.location.origin !== "null"
+        ? window.location.origin
+        : "*";
+      window.parent.postMessage({ type: "aubit-game-action", action: "game-reward", gp: points }, targetOrigin);
+    }
+
+    function renderBoard() {
+      boardEl.innerHTML = "";
+      const board = chess.board();
+
+      for (let row = 0; row < 8; row += 1) {
+        for (let col = 0; col < 8; col += 1) {
+          const squareId = squareName(row, col);
+          const square = document.createElement("button");
+          square.type = "button";
+          square.className = `square ${(row + col) % 2 === 0 ? "light" : "dark"}`;
+          square.setAttribute("role", "gridcell");
+          square.setAttribute("aria-label", squareId);
+
+          if (lastMove && (lastMove.from === squareId || lastMove.to === squareId)) {
+            square.classList.add("last-move");
+          }
+
+          if (selectedSquare === squareId) {
+            square.classList.add("selected");
+          }
+
+          const hintMove = validMoves.find((move) => move.to === squareId);
+          if (hintMove) {
+            square.classList.add("hint");
+            if (hintMove.captured) {
+              square.classList.add("capture-hint");
+            }
+          }
+
+          const piece = board[row][col];
+          if (piece) {
+            const img = document.createElement("img");
+            img.className = "piece";
+            img.src = getPieceImage(piece);
+            img.alt = `${piece.color === "w" ? "White" : "Black"} ${PIECE_NAMES[piece.type]}`;
+            square.appendChild(img);
+          }
+
+          square.addEventListener("click", () => handleSquareClick(squareId));
+          boardEl.appendChild(square);
+        }
+      }
+    }
+
+    function updateStatus() {
+      const turn = chess.turn();
+      turnBadge.textContent = `${turn === "w" ? "White" : "Black"} turn`;
+      turnBadge.classList.toggle("black-turn", turn === "b");
+
+      boardFooterLeft.textContent = `Opponent: ${activeProfile.name}`;
+      boardFooterRight.textContent = engineError
+        ? "Engine offline"
+        : (engineReady ? `Stockfish 18 ready • ${activeProfile.tagline}` : "Engine loading...");
+
+      engineTitle.textContent = engineError ? "Stockfish unavailable" : `Stockfish 18 • ${activeProfile.name}`;
+      engineMeta.textContent = engineError
+        ? "The local Stockfish worker failed to initialize, so the chess AI is unavailable until the page is reloaded."
+        : `Profile: ${activeProfile.tagline}. Strength target ${activeProfile.limitStrength ? `${activeProfile.elo} Elo` : "max engine"}, search time ${activeProfile.moveTime}ms, MultiPV ${activeProfile.multiPv}.`;
+
+      if (engineError) {
+        statusTitle.textContent = "Stockfish failed to load";
+        statusDetail.textContent = String(engineError.message || engineError);
+        return;
+      }
+
+      if (!engineReady) {
+        statusTitle.textContent = "Loading Stockfish 18...";
+        statusDetail.textContent = "Bundled WASM engine is starting. The board will unlock as soon as the worker replies.";
+        return;
+      }
+
+      if (chess.isCheckmate()) {
+        const winner = chess.turn() === "w" ? "Aubit AI" : "You";
+        if (winner === "You" && !window.__aubitChessRewarded) {
+          window.__aubitChessRewarded = true;
+          awardGoldPoints(200);
+        }
+        statusTitle.textContent = `${winner} win by checkmate`;
+        statusDetail.textContent = lastActionText;
+        return;
+      }
+
+      if (chess.isDraw()) {
+        statusTitle.textContent = "Drawn game";
+        statusDetail.textContent = `${lastActionText} The position is drawn by chess.js rules.`;
+        return;
+      }
+
+      if (aiThinking) {
+        statusTitle.textContent = `${activeProfile.name} is thinking`;
+        statusDetail.textContent = `${activeProfile.summary} Aubit is searching with Stockfish now.`;
+        return;
+      }
+
+      if (turn === playerColor) {
+        statusTitle.textContent = chess.isCheck() ? "Your king is in check" : "Your move";
+        statusDetail.textContent = lastActionText;
+      } else {
+        statusTitle.textContent = chess.isCheck() ? `${activeProfile.name} is under pressure` : `${activeProfile.name} to move`;
+        statusDetail.textContent = lastActionText;
+      }
+    }
+
+    function render() {
+      renderThemeOptions();
+      renderProfiles();
+      renderBoard();
+      updateStatus();
+    }
+
+    async function requestAIMove() {
+      if (!engineReady || engineError || chess.turn() !== aiColor || chess.isGameOver()) {
+        render();
+        return;
+      }
+
+      const requestId = ++aiRequestId;
+      aiThinking = true;
+      render();
+
+      try {
+        const result = await stockfish.search(chess.fen(), activeProfile);
+        if (requestId !== aiRequestId) {
+          return;
+        }
+        const move = chooseStyledMove(result, activeProfile);
+        aiThinking = false;
+
+        if (!move) {
+          lastActionText = `${activeProfile.name} had no legal move.`;
+          render();
+          return;
+        }
+
+        const played = chess.move({
+          from: move.from,
+          to: move.to,
+          promotion: move.promotion || "q",
+        });
+
+        if (played) {
+          lastMove = played;
+          lastActionText = `${activeProfile.name} played ${played.san}. ${describeMove(played)}.`;
+        }
+      } catch (error) {
+        if (requestId !== aiRequestId) {
+          return;
+        }
+        aiThinking = false;
+        engineError = error;
+      }
+
+      render();
+    }
+
+    function handleSquareClick(squareId) {
+      if (!engineReady || engineError || aiThinking || chess.turn() !== playerColor || chess.isGameOver()) {
+        return;
+      }
+
+      const piece = chess.get(squareId);
+      if (selectedSquare) {
+        const chosenMove = validMoves.find((move) => move.to === squareId);
+        if (chosenMove) {
+          const played = chess.move({
+            from: chosenMove.from,
+            to: chosenMove.to,
+            promotion: chosenMove.promotion || "q",
+          });
+
+          if (played) {
+            lastMove = played;
+            lastActionText = `You played ${played.san}. ${describeMove(played)}.`;
+            selectedSquare = null;
+            validMoves = [];
+            render();
+            requestAIMove();
+            return;
+          }
+        }
+      }
+
+      if (piece && piece.color === playerColor) {
+        selectedSquare = squareId;
+        validMoves = chess.moves({ square: squareId, verbose: true });
+      } else {
+        selectedSquare = null;
+        validMoves = [];
+      }
+
+      render();
+    }
+
+    async function resetGame(profileWasChanged = false) {
+      aiRequestId += 1;
+      chess = new Chess();
+      selectedSquare = null;
+      validMoves = [];
+      lastMove = null;
+      aiThinking = false;
+      lastActionText = profileWasChanged
+        ? `Now facing ${activeProfile.name}. New game started.`
+        : `Fresh board loaded. You are White and ${activeProfile.name} is Black.`;
+
+      if (!engineError) {
+        try {
+          await stockfish.newGame(activeProfile);
+          engineReady = true;
+        } catch (error) {
+          engineError = error;
+        }
+      }
+
+      render();
+    }
+
+    async function initialize() {
+      render();
+
+      try {
+        await stockfish.newGame(activeProfile);
+        engineReady = true;
+        lastActionText = `Stockfish 18 is ready. Aubit is using the ${activeProfile.name} profile as Black.`;
+      } catch (error) {
+        engineError = error;
+      }
+
+      render();
+    }
+
+    resetButton.addEventListener("click", () => {
+      resetGame(false);
+    });
+    newGameButton.addEventListener("click", () => {
+      resetGame(false);
+    });
+    backButton.addEventListener("click", () => {
+      goBackToGameHub();
+    });
+
+    window.addEventListener("beforeunload", () => {
+      stockfish.dispose();
+    });
+
+    applyTheme(activeTheme);
+    initialize();
+  </script>
+</body>
+</html>

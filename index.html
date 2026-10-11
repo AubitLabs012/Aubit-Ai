@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aubit AI </title>
+    <link rel="icon" type="image/png" sizes="64x64" href="./src/assets/favicon-aubit-face-64.png?v=20260414-robotface-v2" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="preload" as="image" href="./images/HomeSection.jpeg" />
+    <link rel="preload" as="image" href="./images/HomeSectionFocus.jpeg" />
+    <link rel="preload" as="image" href="./images/GameHubSection.jpeg" />
+    <link rel="preload" as="image" href="./images/CustomizeSection.jpeg" />
+    <link rel="preload" as="image" href="./src/assets/game-hub-bg.jpeg" />
+    <link rel="preload" as="image" href="./src/assets/customize-hub-bg.jpeg" />
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body class="auth-locked">
+    <div class="app-shell" data-season="diwali" data-mode="immersive" data-theme="light" data-panel="default">
+      <aside class="widget-rail">
+        <button class="widget-button secondary" id="widgetModeToggle" aria-label="Toggle mode">
+          <span class="widget-dot"></span>
+          <span>Voice Assistant</span>
+        </button>
+      </aside>
+
+      <main class="experience">
+        <section class="hero-room">
+          <div class="room-backdrop">
+            <img src="./src/assets/aubit-room.jpeg" alt="Aubit living room" id="mainRoomImage" />
+            <div class="room-gradient"></div>
+            <div class="room-weather"></div>
+            <div class="festival-lights" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <button class="home-photo-frame" id="homePhotoFrame" type="button" aria-label="Open framed photo">
+              <img src="./images/HomePhotoFrame.png" alt="Aubit memory frame" />
+            </button>
+          </div>
+
+          <header class="topbar">
+            <div class="topbar-brand">
+              <h1>Aubit</h1>
+              <div class="profile-badges">
+                <div class="user-badge is-hidden" id="currentUserBadge">Signed in as <span id="currentUserLabel"></span></div>
+                <div class="gp-badge" id="goldPointsBadge" title="Gold Points">
+                  <span>GP</span>
+                  <strong id="goldPointsLabel">1,200</strong>
+                </div>
+              </div>
+              <form class="name-settings-form" id="companionNameForm" autocomplete="off">
+                <label class="name-settings-label" for="companionNameInput">Call me</label>
+                <div class="name-settings-row">
+                  <input class="name-settings-input" id="companionNameInput" name="preferred_name" type="text" maxlength="24" placeholder="Your name or nickname" />
+                  <button class="ghost-button compact name-settings-save" id="companionNameSave" type="submit">Save</button>
+                </div>
+              </form>
+            </div>
+            <section class="home-clock" id="homeClock" aria-label="Current day, date, time, and season">
+              <span class="home-clock-kicker">Home Clock</span>
+              <strong class="home-clock-time" id="homeClockTime">--:--:--</strong>
+              <div class="home-clock-meta">
+                <span id="homeClockDay">--</span>
+                <span class="home-clock-dot" aria-hidden="true"></span>
+                <span id="homeClockSeason">--</span>
+              </div>
+              <div class="home-clock-date" id="homeClockDate">--</div>
+            </section>
+            <div class="topbar-actions">
+              <button class="object-card header-lamp-button" data-reaction="focus">
+                <img src="./src/assets/focus-lamp.png" alt="Focus Lamp" />
+              </button>
+            </div>
+          </header>
+
+          <section class="companion-stage" id="companionStage">
+            <div class="ambient-orb ambient-orb-left"></div>
+            <div class="ambient-orb ambient-orb-right"></div>
+
+            <div class="board-panel" id="studyBoard">
+              <div class="board-header">
+                <span id="boardTitle">Study Board</span>
+                <button class="ghost-button compact" id="boardActionButton" data-board-topic="Python">
+                  Explain 
+                </button>
+              </div>
+              <div class="board-content" id="boardContent">
+                <h3>What should we learn today?</h3>
+                <p>
+                  Aubit can explain concepts visually, break them into steps, and ask
+                  questions after each concept.
+                </p>
+              </div>
+            </div>
+
+            <div class="aubit-platform" id="aubitPlatform">
+              <div class="halo-ring"></div>
+              <button
+                class="aubit-avatar"
+                id="aubitAvatar"
+                data-outfit="default"
+                data-expression="neutral"
+                data-robot-variant="male"
+                type="button"
+                aria-label="Choose Aubit or Aubira"
+                aria-controls="robotChoiceMenu"
+                aria-expanded="false"
+              >
+                <img src="./images/robot-earlier.png" alt="Aubit robot" />
+                <div class="robot-face-overlay" aria-hidden="true">
+                  <span class="robot-eye robot-eye-left"></span>
+                  <span class="robot-eye robot-eye-right"></span>
+                </div>
+              </button>
+              <div class="robot-choice-menu" id="robotChoiceMenu" aria-hidden="true">
+                <p class="robot-choice-title">Choose Aubit or Aubira</p>
+                <div class="robot-choice-grid">
+                  <button class="robot-choice-button active" type="button" data-robot-variant="male" aria-pressed="true">
+                    <img src="./images/robot-earlier.png" alt="Aubit robot" />
+                    <span>Aubit</span>
+                  </button>
+                  <button class="robot-choice-button" type="button" data-robot-variant="female" aria-pressed="false">
+                    <img src="./images/Aubit-Female.png" alt="Aubira robot" />
+                    <span>Aubira</span>
+                  </button>
+                </div>
+              </div>
+              <div class="speech-bubble" id="speechBubble">
+                Hi, I’m Aubit. What can I do for you?
+              </div>
+            </div>
+
+            <div class="customize-tool-buttons is-hidden" id="customizeToolButtons">
+              <button
+                class="object-card customize-tool-toggle"
+                id="customizeToolToggle"
+                type="button"
+                aria-label="Open outfit options"
+                aria-expanded="false"
+              >
+                <span class="customize-icon-hanger" aria-hidden="true"></span>
+              </button>
+              <button class="object-card customize-tool-button customize-tool-option option-top" data-outfit-style="armor-red" data-visible-for="male" aria-label="Red armor style">
+                <img src="./images/Aubit-Red-Armor-Hero.png" alt="Red robot style" />
+              </button>
+              <button class="object-card customize-tool-button customize-tool-option option-top-left" data-outfit-style="street-green" data-visible-for="male" aria-label="Green jacket style">
+                <img src="./images/Aubit-Street-Green.png" alt="Green jacket robot style" />
+              </button>
+              <button class="object-card customize-tool-button customize-tool-option option-top-right" data-outfit-style="vibe-code" data-visible-for="male" aria-label="Vibe Code shirt style">
+                <img src="./images/Aubit-Vibe-Code.png" alt="Vibe Code robot style" />
+              </button>
+              <div class="customize-tool-option customize-branch-cluster option-left" id="aubitWinterBranchCluster" data-visible-for="male" aria-hidden="false">
+                <button
+                  class="object-card customize-tool-button customize-branch-toggle"
+                  id="aubitWinterBranchToggle"
+                  type="button"
+                  data-outfit-branch="aubit-winter"
+                  aria-label="Open Aubit winter outfit options"
+                  aria-expanded="false"
+                >
+                  <img src="./images/Aubit-Red-Winter.png" alt="Aubit winter outfit options" />
+                </button>
+                <div class="customize-branch-menu" id="aubitWinterBranchMenu" aria-hidden="true">
+                  <button class="object-card customize-tool-button customize-branch-option" type="button" data-outfit-style="aubit-red-winter" data-visible-for="male" aria-label="Red cozy winter style">
+                    <img src="./images/Aubit-Red-Winter.png" alt="Red cozy winter robot style" />
+                  </button>
+                  <button class="object-card customize-tool-button customize-branch-option" type="button" data-outfit-style="aubit-green-winter" data-visible-for="male" aria-label="Green winter style">
+                    <img src="./images/Aubit-Green-Winter.png" alt="Green winter robot style" />
+                  </button>
+                </div>
+              </div>
+              <button class="object-card customize-tool-button customize-tool-option option-right" data-outfit-style="casual-green" data-visible-for="male" aria-label="Green casual style">
+                <img src="./images/Aubit-Green.png" alt="Green robot style" />
+              </button>
+              <button class="object-card customize-tool-button customize-tool-option option-bottom" data-outfit-style="default" aria-label="Original white robot style">
+                <img src="./images/robot-earlier.png" alt="Original white robot style" />
+              </button>
+              <button class="object-card customize-tool-button customize-tool-option option-bottom-left" data-outfit-style="aubira-violet" data-visible-for="female" aria-label="Aubira violet style">
+                <img src="./images/Aubira-Violet.png" alt="Aubira violet robot style" />
+              </button>
+              <button class="object-card customize-tool-button customize-tool-option option-right" data-outfit-style="aubira-pink-casual" data-visible-for="female" aria-label="Aubira pink casual style">
+                <img src="./images/Aubira-Pink-Casual.png" alt="Aubira pink casual robot style" />
+              </button>
+              <button class="object-card customize-tool-button customize-tool-option option-top" data-outfit-style="aubira-winter-coat" data-visible-for="female" aria-label="Aubira winter outfit style">
+                <img src="./images/Aubira-Winter-Coat.png" alt="Aubira winter coat robot style" />
+              </button>
+              <button class="object-card customize-tool-button customize-tool-option option-bottom-left" data-outfit-style="cobra-kai" data-visible-for="male" aria-label="Cobra Kai outfit style">
+                <img src="./images/Aubit-Cobra-Kai.png" alt="Cobra Kai robot style" />
+              </button>
+            </div>
+
+            <div class="game-tool-buttons is-hidden" id="gameToolButtons">
+              <button
+                class="object-card game-tool-toggle"
+                id="gameToolToggle"
+                type="button"
+                aria-label="Open Jintendo Games controller"
+                aria-expanded="false"
+              >
+                <img src="./images/game-controller.png" alt="Jintendo Games controller" class="game-icon-controller" />
+              </button>
+              <button class="object-card game-tool-option option-top" data-game="sudoku" aria-label="Open Sudoku Grid" title="Sudoku Grid">
+                <img src="./src/assets/sudoku-logo.png" alt="Sudoku Grid game logo" />
+              </button>
+              <button class="object-card game-tool-option option-top-right" data-game="monopoly" aria-label="Open Aubit Streets" title="Aubit Streets">
+                <img src="./src/assets/monopoly-logo.svg" alt="Aubit Streets game logo" />
+              </button>
+              <button class="object-card game-tool-option option-bottom-right" data-game="red-bounce" aria-label="Open Red Bounce DX" title="Red Bounce DX">
+                <img src="./src/assets/red-bounce-logo.svg" alt="Red Bounce DX game logo" />
+              </button>
+              <button class="object-card game-tool-option option-right" data-game="subway-sprint" aria-label="Open Subway Sprint" title="Subway Sprint">
+                <img src="./src/assets/subway-sprint-logo.svg" alt="Subway Sprint game logo" />
+              </button>
+              <button class="object-card game-tool-option option-bottom" data-game="snake-ladder" aria-label="Open Snake & Ladder" title="Snake & Ladder">
+                <img src="./src/assets/snake-ladder-logo.png" alt="Snake & Ladder game logo" />
+              </button>
+              <button class="object-card game-tool-option option-bottom-left" data-game="chess" aria-label="Open Aubit Chess" title="Aubit Chess">
+                <img src="./src/assets/chess-logo.svg" alt="Aubit Chess game logo" />
+              </button>
+              <button class="object-card game-tool-option option-top-left" data-game="maze" aria-label="Open Neon Maze DX" title="Neon Maze DX">
+                <img src="./src/assets/maze-logo.svg" alt="Neon Maze DX game logo" />
+              </button>
+            </div>
+          </section>
+
+          <section class="mode-panels">
+            <article class="panel-card" data-panel="study">
+              <div class="panel-icon panel-icon-study" aria-hidden="true">
+                <img src="./src/assets/study-icon.png" alt="" />
+              </div>
+            </article>
+            <article class="panel-card" data-panel="games">
+              <div class="panel-icon panel-icon-games" aria-hidden="true">
+                <img src="./src/assets/games-icon.png" alt="" />
+              </div>
+            </article>
+            <article class="panel-card" data-panel="customize">
+              <div class="panel-icon panel-icon-customize" aria-hidden="true">
+                <img src="./src/assets/customize-icon-head.png" alt="" />
+                <span class="customize-panel-eyes">
+                  <span class="customize-panel-eye"></span>
+                  <span class="customize-panel-eye right"></span>
+                </span>
+              </div>
+            </article>
+            <article class="panel-card" data-panel="creator">
+              <div class="panel-icon panel-icon-creator" aria-hidden="true">
+                <span class="creator-panel-board">
+                  <span class="creator-panel-pin left"></span>
+                  <span class="creator-panel-pin right"></span>
+                  <span class="creator-panel-line top"></span>
+                  <span class="creator-panel-line middle"></span>
+                  <span class="creator-panel-line short"></span>
+                </span>
+              </div>
+            </article>
+          </section>
+        </section>
+
+      </main>
+
+      <div class="intro-overlay" id="introOverlay" role="dialog" aria-modal="true" hidden>
+        <div class="intro-window">
+          <div class="intro-room">
+            <img src="./src/assets/aubit-room.jpeg" alt="Aubit intro room" id="introRoomImage" />
+          </div>
+          <div class="intro-pod" id="introPod">
+            <img src="./src/assets/aubit-pod.png" alt="Aubit pod" />
+            <span class="pod-eye pod-eye-left" aria-hidden="true"></span>
+            <span class="pod-eye pod-eye-right" aria-hidden="true"></span>
+            <div class="click-hint">Tap the pod to open your companion</div>
+          </div>
+          <div class="intro-aubit" id="introAubit" data-outfit="default" data-expression="neutral" data-robot-variant="male">
+            <img src="./images/robot-earlier.png" alt="Aubit robot emerging from pod" />
+            <div class="robot-face-overlay" aria-hidden="true">
+              <span class="robot-eye robot-eye-left"></span>
+              <span class="robot-eye robot-eye-right"></span>
+            </div>
+          </div>
+          <div class="intro-caption" id="introCaption">
+            Tap the pod to open your companion
+          </div>
+        </div>
+      </div>
+
+      <div class="photo-viewer" id="photoViewer" role="dialog" aria-modal="true" aria-label="Photo viewer">
+        <button class="photo-viewer-back" id="photoViewerBack" type="button" aria-label="Back to home section">Back to Home</button>
+        <button class="photo-viewer-close" id="photoViewerClose" type="button" aria-label="Close photo viewer">×</button>
+        <img id="photoViewerImage" src="./images/HomePhotoFrame.png" alt="Aubit framed photo enlarged view" />
+      </div>
+
+    </div>
+
+    <div class="entry-auth-overlay" id="entryAuthOverlay" role="dialog" aria-modal="true" aria-label="Sign in or sign up">
+      <img class="entry-auth-bg" src="./images/auth/auth-room-reference.png" alt="" aria-hidden="true" />
+      <div class="entry-auth-scrim" aria-hidden="true"></div>
+
+      <section class="entry-auth-panel">
+        <h2>Welcome To Aubit</h2>
+        <p>Sign in or create an account to continue.</p>
+
+        <div class="entry-auth-mode-switch" role="tablist" aria-label="Authentication mode">
+          <button class="entry-auth-mode-button active" type="button" data-auth-mode="signin">Sign In</button>
+          <button class="entry-auth-mode-button" type="button" data-auth-mode="signup">Sign Up</button>
+        </div>
+
+        <label class="entry-auth-age-field">
+          <span>Age</span>
+          <input type="number" id="entryAgeInput" min="5" max="100" placeholder="Your age" required />
+        </label>
+
+        <form class="entry-auth-form" id="entrySignInForm" novalidate>
+          <label>
+            <span>Email or Username</span>
+            <input type="text" name="email" autocomplete="username" placeholder="you@example.com" required />
+          </label>
+          <label>
+            <span>Password</span>
+            <input type="password" name="password" autocomplete="current-password" placeholder="At least 8 characters" minlength="8" required />
+          </label>
+          <button type="submit" class="entry-auth-submit">Sign In</button>
+        </form>
+
+        <form class="entry-auth-form is-hidden" id="entrySignUpForm" novalidate>
+          <label>
+            <span>Name</span>
+            <input type="text" name="display_name" autocomplete="name" placeholder="Your name" required />
+          </label>
+          <label>
+            <span>Email</span>
+            <input type="email" name="email" autocomplete="email" placeholder="you@example.com" required />
+          </label>
+          <label>
+            <span>Password</span>
+            <input type="password" name="password" autocomplete="new-password" placeholder="At least 8 characters" minlength="8" required />
+          </label>
+          <label>
+            <span>Confirm Password</span>
+            <input type="password" name="confirm_password" autocomplete="new-password" placeholder="Repeat password" minlength="8" required />
+          </label>
+          <button type="submit" class="entry-auth-submit">Create Account</button>
+        </form>
+
+        <p class="entry-auth-feedback is-hidden" id="entryAuthFeedback" aria-live="polite"></p>
+        <button class="entry-auth-guest" id="entryGuestButton" type="button">Continue as Guest</button>
+        <button class="entry-auth-reset" id="entryAuthResetButton" type="button">Reset Login</button>
+      </section>
+
+      <button class="floor-gateway-button" id="floorGatewayButton" type="button" aria-label="Enter home section">
+        <img src="./src/assets/aubit-pod.png" alt="Aubit login pod" />
+        <span class="gateway-eyes" aria-hidden="true">
+          <span class="gateway-eye"></span>
+          <span class="gateway-eye"></span>
+        </span>
+        <span id="floorGatewayLabel">Tap to Enter Home</span>
+      </button>
+    </div>
+
+    <script src="./src/auth-boot.js"></script>
+    <script src="./src/app.js"></script>
+  </body>
+</html>

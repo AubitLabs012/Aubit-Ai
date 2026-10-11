@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Red Bounce DX logo</title>
+  <desc id="desc">A glossy red ball bouncing above a grassy platform on a dark arcade badge.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#1d2840"/>
+      <stop offset="100%" stop-color="#09101d"/>
+    </linearGradient>
+    <radialGradient id="ball" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#ffe5e5"/>
+      <stop offset="40%" stop-color="#ff6464"/>
+      <stop offset="78%" stop-color="#d72020"/>
+      <stop offset="100%" stop-color="#760909"/>
+    </radialGradient>
+    <linearGradient id="platform" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#7cf1a3"/>
+      <stop offset="100%" stop-color="#138a4e"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <circle cx="64" cy="64" r="50" fill="rgba(255,255,255,0.05)"/>
+  <ellipse cx="65" cy="90" rx="28" ry="10" fill="rgba(0,0,0,0.28)"/>
+  <circle cx="62" cy="54" r="24" fill="url(#ball)"/>
+  <path d="M47 38c7-10 20-16 30-15" fill="none" stroke="rgba(255,255,255,0.4)" stroke-linecap="round" stroke-width="5"/>
+  <circle cx="53" cy="45" r="6" fill="rgba(255,255,255,0.25)"/>
+  <rect x="29" y="94" width="70" height="12" rx="6" fill="url(#platform)"/>
+  <rect x="29" y="103" width="70" height="6" rx="3" fill="#0b5d35"/>
+  <path d="M31 93c7-9 16-15 27-18" fill="none" stroke="#ffd45d" stroke-linecap="round" stroke-width="4"/>
+</svg>

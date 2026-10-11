@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Chess Icon</title>
+  <desc id="desc">A stylized white knight chess piece on a dark green circular badge.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#173a2b"/>
+      <stop offset="100%" stop-color="#081911"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f7fff9"/>
+      <stop offset="100%" stop-color="#d9ece0"/>
+    </linearGradient>
+  </defs>
+  <circle cx="128" cy="128" r="120" fill="url(#bg)"/>
+  <circle cx="128" cy="128" r="108" fill="none" stroke="#7bf2bf" stroke-opacity="0.35" stroke-width="6"/>
+  <path
+    d="M92 188h92v18H72v-22l30-26v-20c0-15 10-30 24-38l-18-22c-7-8-6-19 3-25l27-19c13-9 31-4 37 11l8 21-18 5-6-14-18 13 24 29c9 12 14 26 14 41v16l13 10v21h-20v-12l-15-11v-24c0-11-3-21-10-30l-30 11 14 20c5 8 8 17 8 26v21z"
+    fill="url(#accent)"
+  />
+  <circle cx="155" cy="74" r="6" fill="#0c1f16"/>
+</svg>

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Subway Sprint logo</title>
+  <desc id="desc">A stylized runner track with a train and coin.</desc>
+  <defs>
+    <linearGradient id="sky" x1="18" x2="110" y1="12" y2="116" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#35d9ff"/>
+      <stop offset=".5" stop-color="#20d6a1"/>
+      <stop offset="1" stop-color="#ffe66d"/>
+    </linearGradient>
+    <linearGradient id="rail" x1="64" x2="64" y1="46" y2="116" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#17324f"/>
+      <stop offset="1" stop-color="#071827"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#071827"/>
+  <circle cx="64" cy="64" r="52" fill="url(#sky)"/>
+  <path d="M31 112 54 47h20l23 65H76l-5-21H57l-5 21H31Z" fill="url(#rail)"/>
+  <path d="M46 111 59 47M82 111 69 47" fill="none" stroke="#f7fbff" stroke-width="4" stroke-linecap="round" opacity=".9"/>
+  <path d="M48 92h32M43 106h42M53 76h22" fill="none" stroke="#ffe66d" stroke-width="5" stroke-linecap="round"/>
+  <rect x="43" y="20" width="42" height="38" rx="10" fill="#f7fbff"/>
+  <rect x="50" y="28" width="28" height="13" rx="4" fill="#17324f"/>
+  <circle cx="54" cy="51" r="4" fill="#ff5f6d"/>
+  <circle cx="74" cy="51" r="4" fill="#ff5f6d"/>
+  <circle cx="91" cy="34" r="12" fill="#ffe66d" stroke="#fff7b0" stroke-width="4"/>
+  <path d="M29 38c8-6 18-9 31-9" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".78"/>
+</svg>

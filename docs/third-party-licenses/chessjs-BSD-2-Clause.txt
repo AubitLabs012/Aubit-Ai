@@ -1,0 +1,1 @@
+chess.js is BSD-2-Clause licensed. Repository: https://github.com/jhlywa/chess.js

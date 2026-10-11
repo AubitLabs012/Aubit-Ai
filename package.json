@@ -1,0 +1,74 @@
+{
+  "name": "aubit-desktop-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "author": "Aubit Project",
+  "description": "Aubit desktop companion with immersive app and Windows widget shell.",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node scripts/start-electron.js",
+    "dev": "node scripts/start-electron.js",
+    "backend:start": "node scripts/start-backend.js",
+    "check": "node --check electron/main.js && node --check electron/preload.js && node --check src/widget.js && node --check src/app.js",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^41.1.1",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.aubit.desktopassistant",
+    "productName": "Aubit Desktop",
+    "directories": {
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "build/**/*",
+      "images/**/*",
+      "models/**/*",
+      "backend/app/**/*",
+      "backend/.env.example",
+      "backend/requirements.txt",
+      "backend/README.md",
+      "*.html",
+      "README.md",
+      "docs/**/*",
+      "!backend/.venv/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": [
+          "app/**/*",
+          ".env.example",
+          "requirements.txt",
+          "README.md"
+        ]
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false,
+      "verifyUpdateCodeSignature": false,
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "Aubit-Desktop-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Aubit Desktop"
+    }
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "stockfish": "^18.0.7"
+  }
+}

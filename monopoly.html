@@ -1,0 +1,1056 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monopoly-Style Game</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="./src/assets/favicon-aubit-face-64.png?v=20260414-robotface-v2" />
+  <style>
+    :root {
+      --bg: #eef3ec;
+      --panel: #ffffff;
+      --text: #17212b;
+      --muted: #5c6b7a;
+      --line: #1e252b;
+      --shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+      --radius: 18px;
+      --board-size: min(92vw, 860px);
+      --cell: calc(var(--board-size) / 11);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, Arial, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top left, #f8fbf5, #e7efe4 45%, #dde8d8);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .app {
+      max-width: 1360px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(320px, 880px) minmax(280px, 360px);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .board-wrap,
+    .panel {
+      background: var(--panel);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .board-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid #e8edf0;
+      background: linear-gradient(180deg, #ffffff, #f7faf7);
+    }
+
+    .board-header h1 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    .board-header .sub {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .board-area {
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .board {
+      width: var(--board-size);
+      height: var(--board-size);
+      display: grid;
+      grid-template-columns: repeat(11, 1fr);
+      grid-template-rows: repeat(11, 1fr);
+      background: #dfeadb;
+      border: 4px solid var(--line);
+      position: relative;
+      user-select: none;
+    }
+
+    .tile {
+      border: 1px solid var(--line);
+      background: #f6f8f2;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 4px;
+      font-size: 10px;
+      line-height: 1.05;
+      text-align: center;
+    }
+
+    .tile .name {
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .tile .price {
+      color: #243241;
+      opacity: 0.85;
+      font-size: 10px;
+    }
+
+    .tile .band {
+      background: var(--band, transparent);
+      width: 100%;
+      height: 16px;
+      border-bottom: 1px solid var(--line);
+      flex: 0 0 auto;
+    }
+
+    .corner {
+      font-size: 11px;
+      font-weight: 800;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .special {
+      background: #f3f2ea;
+      font-weight: 800;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .special .icon,
+    .corner .icon {
+      font-size: 26px;
+      line-height: 1;
+    }
+
+    .center {
+      grid-column: 2 / 11;
+      grid-row: 2 / 11;
+      border: 3px solid var(--line);
+      background: #dbe6d7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .logo {
+      transform: rotate(-28deg);
+      background: #d92525;
+      color: white;
+      border: 4px solid #111;
+      padding: 12px 28px;
+      font-size: clamp(28px, 4vw, 52px);
+      font-weight: 900;
+      letter-spacing: 2px;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.18);
+    }
+
+    .center-sub {
+      position: absolute;
+      bottom: 15%;
+      font-size: clamp(12px, 1.35vw, 20px);
+      font-weight: 700;
+      transform: rotate(-28deg);
+      color: #1d262d;
+    }
+
+    .tokens-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .token {
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      border: 3px solid white;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.22);
+      transform: translate(-50%, -50%);
+      transition: left 0.22s ease, top 0.22s ease;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 10px;
+      font-weight: 900;
+    }
+
+    .token.p0 {
+      background: #e53935;
+    }
+
+    .token.p1 {
+      background: #1e88e5;
+    }
+
+    .token.p2 {
+      background: #43a047;
+    }
+
+    .token.p3 {
+      background: #f9a825;
+    }
+
+    .panel {
+      padding: 18px;
+      position: sticky;
+      top: 20px;
+    }
+
+    .status {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin: 0 0 8px;
+    }
+
+    .players {
+      display: grid;
+      gap: 10px;
+    }
+
+    .player-card {
+      border: 1px solid #e6ecef;
+      border-radius: 16px;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 16px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      background: #fbfcfd;
+    }
+
+    .player-card.active {
+      border-color: #111;
+      box-shadow: inset 0 0 0 1px #111;
+      background: #f9fbf5;
+    }
+
+    .dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+    }
+
+    .money {
+      font-weight: 800;
+      font-size: 15px;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.08s ease, opacity 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .primary {
+      background: #111;
+      color: white;
+    }
+
+    .buy {
+      background: #19a85b;
+      color: white;
+    }
+
+    .secondary {
+      background: #e9eef2;
+      color: #14202c;
+    }
+
+    .danger {
+      background: #d93025;
+      color: white;
+    }
+
+    .board-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .dice-box,
+    .property-box,
+    .log-box {
+      border: 1px solid #e6ecef;
+      border-radius: 16px;
+      padding: 14px;
+      background: #fbfcfd;
+    }
+
+    .dice-value {
+      font-size: 34px;
+      font-weight: 900;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .property-box h3,
+    .log-box h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #eef3f6;
+      color: #314152;
+      margin-bottom: 8px;
+    }
+
+    .owner-chip {
+      margin-top: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #edf3f7;
+    }
+
+    .owner-color {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    #log {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 8px;
+      max-height: 240px;
+      overflow: auto;
+    }
+
+    #log li {
+      font-size: 13px;
+      color: #20303f;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: #f2f6f8;
+    }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 1100px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .panel {
+        position: static;
+      }
+    }
+
+    @media (max-width: 680px) {
+      body {
+        padding: 12px;
+      }
+
+      .board-header {
+        padding: 14px;
+      }
+
+      .panel {
+        padding: 14px;
+      }
+
+      .controls {
+        grid-template-columns: 1fr;
+      }
+
+      .tile {
+        font-size: 8px;
+        padding: 3px;
+      }
+
+      .tile .price {
+        font-size: 8px;
+      }
+
+      .tile .band {
+        height: 12px;
+      }
+
+      .token {
+        width: 16px;
+        height: 16px;
+        border-width: 2px;
+      }
+    }
+
+    body.embed {
+      padding: 10px;
+      background: #e8efe3;
+    }
+
+    body.embed .app {
+      max-width: 100%;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    body.embed .panel {
+      position: static;
+      padding: 12px;
+    }
+
+    body.embed .board-wrap,
+    body.embed .panel {
+      border-radius: 16px;
+    }
+
+    body.embed .board-header {
+      padding: 12px 14px;
+    }
+
+    body.embed .board-header h1 {
+      font-size: 18px;
+    }
+
+    body.embed .board-header .sub {
+      font-size: 12px;
+    }
+
+    body.embed .board-header .small {
+      display: none;
+    }
+
+    body.embed .board-area {
+      padding: 10px;
+    }
+
+    body.embed {
+      --board-size: min(88vw, 640px);
+    }
+
+    body.embed .controls {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    body.embed .tile {
+      font-size: 8px;
+      padding: 3px;
+    }
+
+    body.embed .tile .price {
+      font-size: 8px;
+    }
+
+    body.embed .token {
+      width: 16px;
+      height: 16px;
+      border-width: 2px;
+      font-size: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="board-wrap">
+      <div class="board-header">
+        <div>
+          <h1>Monopoly-Style Game</h1>
+          <div class="sub">Standalone version that works directly in the browser</div>
+        </div>
+        <div class="board-header-actions">
+          <button class="secondary" id="backButton" type="button">Back to Hub</button>
+          <div class="small">4 players - buy properties - rent - chance - tax - jail</div>
+        </div>
+      </div>
+
+      <div class="board-area">
+        <div class="board" id="board">
+          <div class="center">
+            <div class="logo">MONOPOLY</div>
+            <div class="center-sub">The fast-dealing property trading game</div>
+          </div>
+          <div class="tokens-layer" id="tokensLayer"></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="status">
+        <div>
+          <p class="section-title">Players</p>
+          <div class="players" id="players"></div>
+        </div>
+
+        <div class="dice-box">
+          <p class="section-title">Turn</p>
+          <div class="dice-value" id="diceValue">-</div>
+          <div class="small" id="turnText">Player 1, roll the dice</div>
+          <div class="controls" style="margin-top: 12px;">
+            <button class="primary" id="rollBtn">Roll Dice</button>
+            <button class="buy" id="buyBtn" disabled>Buy Property</button>
+            <button class="secondary" id="endBtn" disabled>End Turn</button>
+            <button class="danger" id="restartBtn">Restart</button>
+          </div>
+        </div>
+
+        <div class="property-box" id="propertyBox">
+          <h3>Current Tile</h3>
+          <div class="small">Move to see tile details.</div>
+        </div>
+
+        <div class="log-box">
+          <h3>Game Log</h3>
+          <ul id="log"></ul>
+          <div class="footer-note">Tip: roll, buy when useful, then end turn.</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const isEmbedMode = new URLSearchParams(window.location.search).get("embed") === "1";
+    if (isEmbedMode) {
+      document.body.classList.add("embed");
+    }
+
+    function goBackToGameHub() {
+      if (window.parent && window.parent !== window) {
+        const targetOrigin = window.location.origin && window.location.origin !== "null"
+          ? window.location.origin
+          : "*";
+        window.parent.postMessage(
+          {
+            type: "aubit-game-action",
+            action: "back-to-game-hub",
+          },
+          targetOrigin
+        );
+        return;
+      }
+
+      if (window.history.length > 1) {
+        window.history.back();
+        return;
+      }
+
+      window.location.href = "./index.html";
+    }
+
+    function awardGoldPoints(points) {
+      if (!isEmbedMode || !window.parent || window.parent === window) return;
+      const targetOrigin = window.location.origin && window.location.origin !== "null"
+        ? window.location.origin
+        : "*";
+      window.parent.postMessage({ type: "aubit-game-action", action: "game-reward", gp: points }, targetOrigin);
+    }
+
+    const TILES = [
+      { name: "GO", type: "go" },
+      { name: "Old Kent Road", type: "property", price: 60, rent: 8, color: "#b57947" },
+      { name: "Community Chest", type: "community" },
+      { name: "Whitechapel Road", type: "property", price: 60, rent: 10, color: "#b57947" },
+      { name: "Income Tax", type: "tax", amount: 200 },
+      { name: "Kings Cross Station", type: "station", price: 200, rent: 25, color: "#111111" },
+      { name: "The Angel Islington", type: "property", price: 100, rent: 12, color: "#7dc7f3" },
+      { name: "Chance", type: "chance" },
+      { name: "Euston Road", type: "property", price: 100, rent: 12, color: "#7dc7f3" },
+      { name: "Pentonville Road", type: "property", price: 120, rent: 14, color: "#7dc7f3" },
+      { name: "Jail / Just Visiting", type: "jail" },
+      { name: "Pall Mall", type: "property", price: 140, rent: 16, color: "#d94d63" },
+      { name: "Electric Company", type: "utility", price: 150, rent: 18, color: "#f0d760" },
+      { name: "Whitehall", type: "property", price: 140, rent: 16, color: "#d94d63" },
+      { name: "Northumberland Ave", type: "property", price: 160, rent: 18, color: "#d94d63" },
+      { name: "Marylebone Station", type: "station", price: 200, rent: 25, color: "#111111" },
+      { name: "Bow Street", type: "property", price: 180, rent: 20, color: "#f6a728" },
+      { name: "Community Chest", type: "community" },
+      { name: "Marlborough Street", type: "property", price: 180, rent: 20, color: "#f6a728" },
+      { name: "Vine Street", type: "property", price: 200, rent: 22, color: "#f6a728" },
+      { name: "Free Parking", type: "free" },
+      { name: "Strand", type: "property", price: 220, rent: 24, color: "#e53935" },
+      { name: "Chance", type: "chance" },
+      { name: "Fleet Street", type: "property", price: 220, rent: 24, color: "#e53935" },
+      { name: "Trafalgar Square", type: "property", price: 240, rent: 26, color: "#e53935" },
+      { name: "Fenchurch St Station", type: "station", price: 200, rent: 25, color: "#111111" },
+      { name: "Leicester Square", type: "property", price: 260, rent: 28, color: "#f5dd4b" },
+      { name: "Coventry Street", type: "property", price: 260, rent: 28, color: "#f5dd4b" },
+      { name: "Water Works", type: "utility", price: 150, rent: 18, color: "#f0d760" },
+      { name: "Piccadilly", type: "property", price: 280, rent: 30, color: "#f5dd4b" },
+      { name: "Go To Jail", type: "goToJail" },
+      { name: "Regent Street", type: "property", price: 300, rent: 32, color: "#3faa59" },
+      { name: "Oxford Street", type: "property", price: 300, rent: 32, color: "#3faa59" },
+      { name: "Community Chest", type: "community" },
+      { name: "Bond Street", type: "property", price: 320, rent: 34, color: "#3faa59" },
+      { name: "Liverpool St Station", type: "station", price: 200, rent: 25, color: "#111111" },
+      { name: "Chance", type: "chance" },
+      { name: "Park Lane", type: "property", price: 350, rent: 38, color: "#3768c8" },
+      { name: "Super Tax", type: "tax", amount: 100 },
+      { name: "Mayfair", type: "property", price: 400, rent: 50, color: "#3768c8" },
+    ];
+
+    const chances = [
+      { text: "Bank error in your favor. Collect $120.", effect: (p) => (p.money += 120) },
+      { text: "Speeding fine. Pay $70.", effect: (p) => (p.money -= 70) },
+      { text: "You found a shortcut. Move forward 3 spaces.", effect: (p) => movePlayer(p, 3, false) },
+      { text: "Go back 2 spaces.", effect: (p) => movePlayer(p, -2, false) },
+      { text: "Advance to GO. Collect $200.", effect: (p) => {
+        p.position = 0;
+        p.money += 200;
+      } },
+      { text: "Repair bill. Pay $90.", effect: (p) => (p.money -= 90) },
+    ];
+
+    const communities = [
+      { text: "Community reward. Collect $100.", effect: (p) => (p.money += 100) },
+      { text: "Doctor fee. Pay $50.", effect: (p) => (p.money -= 50) },
+      { text: "Holiday fund matures. Collect $80.", effect: (p) => (p.money += 80) },
+      { text: "School fees. Pay $60.", effect: (p) => (p.money -= 60) },
+      { text: "Move forward 2 spaces.", effect: (p) => movePlayer(p, 2, false) },
+    ];
+
+    const state = {
+      players: [],
+      currentPlayer: 0,
+      dice: null,
+      canBuy: false,
+      rolledThisTurn: false,
+      gameOver: false,
+    };
+
+    const boardEl = document.getElementById("board");
+    const tokensLayer = document.getElementById("tokensLayer");
+    const playersEl = document.getElementById("players");
+    const diceValueEl = document.getElementById("diceValue");
+    const turnTextEl = document.getElementById("turnText");
+    const propertyBoxEl = document.getElementById("propertyBox");
+    const logEl = document.getElementById("log");
+
+    const rollBtn = document.getElementById("rollBtn");
+    const buyBtn = document.getElementById("buyBtn");
+    const endBtn = document.getElementById("endBtn");
+    const restartBtn = document.getElementById("restartBtn");
+    const backButton = document.getElementById("backButton");
+
+    function getEdgeIndices() {
+      const result = [];
+      for (let c = 11; c >= 1; c -= 1) result.push({ r: 11, c });
+      for (let r = 10; r >= 1; r -= 1) result.push({ r, c: 1 });
+      for (let c = 2; c <= 11; c += 1) result.push({ r: 1, c });
+      for (let r = 2; r <= 10; r += 1) result.push({ r, c: 11 });
+      return result;
+    }
+
+    const edgePositions = getEdgeIndices();
+
+    function tileHtml(tile, index) {
+      const cornerTypes = ["go", "jail", "free", "goToJail"];
+      const specialTypes = ["chance", "community", "tax"];
+
+      if (cornerTypes.includes(tile.type)) {
+        const icons = {
+          go: "➜",
+          jail: "🔒",
+          free: "🅿️",
+          goToJail: "🚓",
+        };
+        return `
+          <div class="tile corner" data-index="${index}">
+            <div class="icon">${icons[tile.type]}</div>
+            <div class="name">${tile.name}</div>
+          </div>
+        `;
+      }
+
+      if (specialTypes.includes(tile.type)) {
+        const icons = {
+          chance: "?",
+          community: "📦",
+          tax: "💸",
+        };
+        const value = tile.amount ? `$${tile.amount}` : "";
+        return `
+          <div class="tile special" data-index="${index}">
+            <div class="icon">${icons[tile.type]}</div>
+            <div class="name">${tile.name}</div>
+            <div class="price">${value}</div>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="tile" data-index="${index}" style="--band:${tile.color || "transparent"}">
+          <div class="band"></div>
+          <div class="name">${tile.name}</div>
+          <div class="price">$${tile.price}</div>
+        </div>
+      `;
+    }
+
+    function buildBoard() {
+      edgePositions.forEach((pos, i) => {
+        const wrapper = document.createElement("div");
+        wrapper.style.gridRow = pos.r;
+        wrapper.style.gridColumn = pos.c;
+        wrapper.innerHTML = tileHtml(TILES[i], i);
+        boardEl.appendChild(wrapper.firstElementChild);
+      });
+    }
+
+    function initGame() {
+      state.players = [
+        { id: 0, name: "Player 1", money: 1500, position: 0, properties: [], inJail: false, jailTurns: 0, bankrupt: false },
+        { id: 1, name: "Player 2", money: 1500, position: 0, properties: [], inJail: false, jailTurns: 0, bankrupt: false },
+        { id: 2, name: "Player 3", money: 1500, position: 0, properties: [], inJail: false, jailTurns: 0, bankrupt: false },
+        { id: 3, name: "Player 4", money: 1500, position: 0, properties: [], inJail: false, jailTurns: 0, bankrupt: false },
+      ];
+      state.currentPlayer = 0;
+      state.dice = null;
+      state.canBuy = false;
+      state.rolledThisTurn = false;
+      state.gameOver = false;
+
+      TILES.forEach((tile) => delete tile.owner);
+      logEl.innerHTML = "";
+      createTokens();
+      refresh();
+      addLog("Game started. Player 1 begins.");
+    }
+
+    function createTokens() {
+      tokensLayer.innerHTML = "";
+      state.players.forEach((p) => {
+        const token = document.createElement("div");
+        token.className = `token p${p.id}`;
+        token.id = `token-${p.id}`;
+        token.textContent = p.id + 1;
+        token.title = p.name;
+        tokensLayer.appendChild(token);
+      });
+      updateTokens();
+    }
+
+    function getTileCenter(index, playerOffset = 0) {
+      const pos = edgePositions[index];
+      const boardRect = boardEl.getBoundingClientRect();
+      const cellW = boardRect.width / 11;
+      const cellH = boardRect.height / 11;
+      const x = (pos.c - 0.5) * cellW;
+      const y = (pos.r - 0.5) * cellH;
+      const offsets = [
+        { x: -14, y: -14 },
+        { x: 14, y: -14 },
+        { x: -14, y: 14 },
+        { x: 14, y: 14 },
+      ];
+      return {
+        x: x + offsets[playerOffset].x,
+        y: y + offsets[playerOffset].y,
+      };
+    }
+
+    function updateTokens() {
+      state.players.forEach((p, idx) => {
+        const token = document.getElementById(`token-${p.id}`);
+        if (!token) return;
+        const center = getTileCenter(p.position, idx);
+        token.style.left = `${center.x}px`;
+        token.style.top = `${center.y}px`;
+        token.style.opacity = p.bankrupt ? "0.3" : "1";
+      });
+    }
+
+    function renderPlayers() {
+      playersEl.innerHTML = "";
+      state.players.forEach((p, index) => {
+        const card = document.createElement("div");
+        card.className = `player-card ${state.currentPlayer === index && !state.gameOver ? "active" : ""}`;
+        const props = p.properties.length;
+        card.innerHTML = `
+          <div class="dot" style="background:${["#e53935", "#1e88e5", "#43a047", "#f9a825"][p.id]}"></div>
+          <div>
+            <div style="font-weight:800;">${p.name}${p.bankrupt ? " - Bankrupt" : ""}</div>
+            <div class="small">Position: ${TILES[p.position].name} - Properties: ${props}${p.inJail ? " - In Jail" : ""}</div>
+          </div>
+          <div class="money">$${p.money}</div>
+        `;
+        playersEl.appendChild(card);
+      });
+    }
+
+    function showTileDetails(tile) {
+      const owner = tile.owner !== undefined ? state.players[tile.owner] : null;
+      const ownable = ["property", "station", "utility"].includes(tile.type);
+      propertyBoxEl.innerHTML = `
+        <h3>${tile.name}</h3>
+        <div class="pill">${tile.type.toUpperCase()}</div>
+        <div class="small">
+          ${tile.price ? `Price: $${tile.price}<br>` : ""}
+          ${tile.rent ? `Rent: $${tile.rent}<br>` : ""}
+          ${tile.amount ? `Fee: $${tile.amount}<br>` : ""}
+          ${ownable ? "Can be bought if unowned." : "Special tile effect applies."}
+        </div>
+        ${owner ? `<div class="owner-chip"><span class="owner-color" style="background:${["#e53935", "#1e88e5", "#43a047", "#f9a825"][owner.id]}"></span>Owned by ${owner.name}</div>` : ""}
+      `;
+    }
+
+    function refresh() {
+      renderPlayers();
+      updateTokens();
+      const player = state.players[state.currentPlayer];
+      const tile = TILES[player.position];
+      showTileDetails(tile);
+      diceValueEl.textContent = state.dice ?? "-";
+      turnTextEl.textContent = state.gameOver
+        ? getWinnerText()
+        : `${player.name}${player.inJail ? " is in jail" : ""}${state.rolledThisTurn ? ", choose your next action" : ", roll the dice"}`;
+
+      const canBuyCurrent = state.canBuy && !state.gameOver;
+      rollBtn.disabled = state.rolledThisTurn || state.gameOver;
+      buyBtn.disabled = !canBuyCurrent;
+      endBtn.disabled = !state.rolledThisTurn || state.gameOver;
+    }
+
+    function addLog(text) {
+      const li = document.createElement("li");
+      li.textContent = text;
+      logEl.prepend(li);
+    }
+
+    function currentPlayer() {
+      return state.players[state.currentPlayer];
+    }
+
+    function movePlayer(player, steps, collectGo = true) {
+      const total = TILES.length;
+      const old = player.position;
+      let next = old + steps;
+
+      if (next >= total && collectGo) {
+        player.money += 200;
+        addLog(`${player.name} passed GO and collected $200.`);
+      }
+
+      next = ((next % total) + total) % total;
+      player.position = next;
+    }
+
+    function resolveLanding(player) {
+      const tile = TILES[player.position];
+      state.canBuy = false;
+
+      if (tile.type === "go") {
+        addLog(`${player.name} landed on GO.`);
+      }
+
+      if (tile.type === "tax") {
+        player.money -= tile.amount;
+        addLog(`${player.name} paid $${tile.amount} tax.`);
+      }
+
+      if (tile.type === "chance") {
+        const card = chances[Math.floor(Math.random() * chances.length)];
+        addLog(`${player.name} drew Chance: ${card.text}`);
+        card.effect(player);
+      }
+
+      if (tile.type === "community") {
+        const card = communities[Math.floor(Math.random() * communities.length)];
+        addLog(`${player.name} drew Community Chest: ${card.text}`);
+        card.effect(player);
+      }
+
+      if (tile.type === "goToJail") {
+        player.position = 10;
+        player.inJail = true;
+        player.jailTurns = 1;
+        addLog(`${player.name} was sent to Jail.`);
+      }
+
+      if (tile.type === "free") {
+        addLog(`${player.name} is relaxing at Free Parking.`);
+      }
+
+      if (tile.type === "jail" && !player.inJail) {
+        addLog(`${player.name} is just visiting Jail.`);
+      }
+
+      const ownable = ["property", "station", "utility"].includes(tile.type);
+      if (ownable) {
+        if (tile.owner === undefined) {
+          state.canBuy = player.money >= tile.price;
+          addLog(`${player.name} landed on ${tile.name}. It is available for $${tile.price}.`);
+        } else if (tile.owner !== player.id) {
+          const owner = state.players[tile.owner];
+          player.money -= tile.rent;
+          owner.money += tile.rent;
+          addLog(`${player.name} paid $${tile.rent} rent to ${owner.name} for ${tile.name}.`);
+        } else {
+          addLog(`${player.name} landed on their own property: ${tile.name}.`);
+        }
+      }
+
+      if (player.money < 0) {
+        bankrupt(player);
+      }
+    }
+
+    function bankrupt(player) {
+      player.bankrupt = true;
+      player.money = 0;
+      player.properties.forEach((index) => {
+        delete TILES[index].owner;
+      });
+      player.properties = [];
+      addLog(`${player.name} is bankrupt.`);
+      checkWinner();
+    }
+
+    function checkWinner() {
+      const active = state.players.filter((p) => !p.bankrupt);
+      if (active.length <= 1) {
+        if (!state.gpAwarded) {
+          state.gpAwarded = true;
+          awardGoldPoints(180);
+        }
+        state.gameOver = true;
+      }
+    }
+
+    function getWinnerText() {
+      const active = state.players.filter((p) => !p.bankrupt);
+      return active.length === 1 ? `${active[0].name} wins the game!` : "Game over";
+    }
+
+    function nextPlayer() {
+      if (state.gameOver) return;
+      do {
+        state.currentPlayer = (state.currentPlayer + 1) % state.players.length;
+      } while (state.players[state.currentPlayer].bankrupt);
+
+      state.rolledThisTurn = false;
+      state.canBuy = false;
+      state.dice = null;
+      const p = currentPlayer();
+
+      if (p.inJail) {
+        p.inJail = false;
+        addLog(`${p.name} leaves jail and can play this turn.`);
+      }
+
+      refresh();
+    }
+
+    function rollDice() {
+      const p = currentPlayer();
+      if (state.rolledThisTurn || state.gameOver) return;
+
+      const dice = Math.floor(Math.random() * 6) + 1;
+      state.dice = dice;
+      state.rolledThisTurn = true;
+
+      movePlayer(p, dice, true);
+      addLog(`${p.name} rolled a ${dice} and moved to ${TILES[p.position].name}.`);
+      resolveLanding(p);
+      checkWinner();
+      refresh();
+    }
+
+    function buyProperty() {
+      const p = currentPlayer();
+      const tile = TILES[p.position];
+      const ownable = ["property", "station", "utility"].includes(tile.type);
+
+      if (!ownable || tile.owner !== undefined || p.money < tile.price || !state.canBuy || state.gameOver) return;
+
+      p.money -= tile.price;
+      tile.owner = p.id;
+      p.properties.push(p.position);
+      state.canBuy = false;
+      addLog(`${p.name} bought ${tile.name} for $${tile.price}.`);
+
+      if (p.money < 0) {
+        bankrupt(p);
+      }
+      refresh();
+    }
+
+    function endTurn() {
+      if (!state.rolledThisTurn || state.gameOver) return;
+      nextPlayer();
+    }
+
+    rollBtn.addEventListener("click", rollDice);
+    buyBtn.addEventListener("click", buyProperty);
+    endBtn.addEventListener("click", endTurn);
+    restartBtn.addEventListener("click", initGame);
+    backButton.addEventListener("click", goBackToGameHub);
+    window.addEventListener("resize", updateTokens);
+
+    buildBoard();
+    initGame();
+  </script>
+</body>
+</html>
