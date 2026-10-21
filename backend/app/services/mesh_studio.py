@@ -49,7 +49,7 @@ def unwrap(mesh):
     result.visual = trimesh.visual.TextureVisuals(uv=uv)
     return result, mapping
 
-def project_colors(mesh, references, base=None):
+def project_colors(mesh, references, base=None, ai_complete=True):
     """Accurate reference color projection. Uses bilateral symmetry & 3D spatial diffusion for unseen surfaces."""
     import numpy as np
     from scipy.spatial import cKDTree
@@ -106,7 +106,7 @@ def project_colors(mesh, references, base=None):
         has_projected[valid] = True
 
     # Bilateral symmetry projection for unseen back surfaces if back angle was not provided
-    if "front" in references and "back" not in references:
+    if ai_complete and "front" in references and "back" not in references:
         front_img = np.asarray(references["front"].convert("RGBA"))
         h, w = front_img.shape[:2]
         alpha_front = front_img[:, :, 3] > 48
@@ -125,16 +125,18 @@ def project_colors(mesh, references, base=None):
 
     # 3D spatial diffusion for any remaining uncolored vertices (crevices, undersides)
     if has_projected.any():
-        if not has_projected.all():
+        if ai_complete and not has_projected.all():
             tree = cKDTree(mesh.vertices[has_projected])
             _, nearest_idx = tree.query(mesh.vertices[~has_projected])
             colors[~has_projected] = colors[has_projected][nearest_idx]
+        elif not ai_complete and not has_projected.all():
+            colors[~has_projected] = fallback_color
     else:
         colors[:] = fallback_color
 
     return colors
 
-def bake_texture(mesh, colors, size):
+def bake_texture(mesh, colors, size, pbr=True):
     """Rasterize interpolated colors into a non-overlapping xatlas UV atlas using fast OpenCV rasterization."""
     import cv2
     from PIL import Image
@@ -165,7 +167,9 @@ def bake_texture(mesh, colors, size):
         atlas[pad] = atlas[nearest[0][pad], nearest[1][pad]]
 
     texture = Image.fromarray(atlas)
-    unwrapped.visual.material = trimesh.visual.material.PBRMaterial(baseColorTexture=texture, metallicFactor=0.05, roughnessFactor=0.8, doubleSided=False)
+    metallic = 0.08 if pbr else 0.0
+    roughness = 0.72 if pbr else 1.0
+    unwrapped.visual.material = trimesh.visual.material.PBRMaterial(baseColorTexture=texture, metallicFactor=metallic, roughnessFactor=roughness, doubleSided=False)
     unwrapped.visual.vertex_colors = (mapped_colors * 255).astype(np.uint8)
     return unwrapped, texture
 

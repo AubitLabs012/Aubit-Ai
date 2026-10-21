@@ -16,6 +16,75 @@
   const $ = s => root.querySelector(s);
   const button = (action, label, glyph='', extra='') => `<button type="button" data-action="${action}" ${extra}>${glyph?icon(glyph):''}${label}</button>`;
 
+  const defaultSettings = {
+    ultra: true,
+    aiComplete: false,
+    texture: true,
+    textureQuality: '4K',
+    removeLighting: false,
+    pbr: true,
+    topology: 'triangle',
+    polycount: 50000
+  };
+  let settings = { ...defaultSettings };
+
+  function loadSettings() {
+    try {
+      const saved = localStorage.getItem('aubit_3d_settings');
+      if (saved) settings = Object.assign({}, defaultSettings, JSON.parse(saved));
+    } catch (_) {}
+    applySettingsToUI();
+  }
+
+  function saveSettings() {
+    try {
+      localStorage.setItem('aubit_3d_settings', JSON.stringify(settings));
+    } catch (_) {}
+    updateSettingsSummary();
+  }
+
+  function applySettingsToUI() {
+    if (!root) return;
+    const ultra = $('#a3d-set-ultra'); if (ultra) ultra.checked = !!settings.ultra;
+    const aic = $('#a3d-set-aicomplete'); if (aic) aic.checked = !!settings.aiComplete;
+    const tex = $('#a3d-set-texture'); if (tex) tex.checked = !!settings.texture;
+    const delight = $('#a3d-set-delight'); if (delight) delight.checked = !!settings.removeLighting;
+    const pbr = $('#a3d-set-pbr'); if (pbr) pbr.checked = !!settings.pbr;
+
+    const qualGroup = $('#a3d-quality-group');
+    if (qualGroup) {
+      qualGroup.querySelectorAll('button').forEach(btn => {
+        btn.classList.toggle('is-active', btn.dataset.val === settings.textureQuality);
+      });
+    }
+
+    const topoGroup = $('#a3d-topology-group');
+    if (topoGroup) {
+      topoGroup.querySelectorAll('button').forEach(btn => {
+        btn.classList.toggle('is-active', btn.dataset.val === settings.topology);
+      });
+    }
+
+    const polySlider = $('#a3d-set-poly-slider'); if (polySlider) polySlider.value = settings.polycount;
+    const polyInput = $('#a3d-set-poly-input'); if (polyInput) polyInput.value = settings.polycount;
+
+    updateSettingsSummary();
+  }
+
+  function updateSettingsSummary() {
+    const sumEl = $('#a3d-settings-summary');
+    if (!sumEl) return;
+    const parts = [];
+    if (settings.ultra) parts.push('Ultra');
+    if (settings.texture) {
+      parts.push(`${settings.textureQuality}${settings.pbr ? ' PBR' : ''}`);
+    } else {
+      parts.push('No Texture');
+    }
+    parts.push(settings.topology === 'quad' ? 'Quad' : 'Triangle');
+    sumEl.textContent = parts.join(' · ');
+  }
+
   function mount() {
     root = document.createElement('section'); root.className='a3d'; root.hidden=true;
     root.setAttribute('role','dialog'); root.setAttribute('aria-modal','true'); root.setAttribute('aria-label','Aubit 3D studio');
@@ -50,6 +119,14 @@
             ${button('reconnect','Refresh engine status','rotate','class="a3d-subtle"')}
             <label class="a3d-field">Geometry detail<select id="a3d-detail"><option value="standard">Balanced · 256 grid / 30 steps</option><option value="high">High · 384 grid / 50 steps</option><option value="low">Preview · 192 grid / 20 steps</option></select></label>
             <label class="a3d-field">Seed<input id="a3d-seed" type="number" min="0" max="2147483647" value="12345"></label>
+            <button type="button" class="a3d-settings-pill-btn" data-action="open-settings">
+              <span class="a3d-settings-pill-icon">${icon('spark')}</span>
+              <div class="a3d-settings-pill-text">
+                <strong>Geometry & Texture</strong>
+                <small id="a3d-settings-summary">Ultra · 4K PBR · Triangle</small>
+              </div>
+              <span class="a3d-settings-pill-gear">⚙️</span>
+            </button>
             ${button('generate','Generate Model','spark','class="a3d-primary a3d-generate"')}
           </section>
           <section data-panel="geometry" hidden><div class="a3d-step-label">02 / INSPECT</div><h2>Keep the good geometry.</h2><p class="a3d-muted">Rotate every side and inspect thin surfaces, missing pieces and loose fragments before accepting.</p><div id="a3d-quality" class="a3d-card"></div>${button('inspect','Run geometry inspection','cube','class="a3d-wide"')}<div class="a3d-review">${button('accept','Accept mesh','check')}${button('reject','Reject mesh','close')}</div><p class="a3d-tiny">Rejection marks this asset in your library. It keeps the file for comparison.</p></section>
@@ -70,15 +147,130 @@
         <footer class="a3d-canvas-footer"><span id="a3d-model-label">No model selected</span><span>Drag to orbit · Scroll to zoom</span></footer>
       </main>
       <aside class="a3d-assets"><header><h2>Assets <span id="a3d-asset-count">0</span></h2>${button('library','', 'rotate','title="Refresh assets"')}</header><div class="a3d-assets-summary"><span>Your local collection</span><strong>From reference to ready.</strong><small>Originals and refinements, together.</small></div><div id="a3d-assets-list" class="a3d-assets-list"></div><section class="a3d-export"><h2>Export selected</h2><div>${button('download-glb','GLB','down')}${button('download-stl','STL','down')}</div><p class="a3d-tiny">GLB includes materials and UV textures. STL contains geometry only.</p></section></aside>
-      <dialog id="a3d-guide"><h2>Your local 3D workflow</h2><ol><li>Upload a clear front image, or 2–4 matching angles with Hunyuan3D-2mv.</li><li>Clean and center references, then generate with an installed engine.</li><li>Inspect all sides. Accept or reject the result.</li><li>Separate connected parts and repair small holes.</li><li>Optimize triangles and unwrap UVs before baking an anime texture.</li></ol><p>One photo cannot describe hidden surfaces accurately. Multiple angles help, but do not guarantee a perfect model.</p>${button('close-guide','Got it','','class="a3d-primary"')}</dialog>`;
+      <dialog id="a3d-guide"><h2>Your local 3D workflow</h2><ol><li>Upload a clear front image, or 2–4 matching angles with Hunyuan3D-2mv.</li><li>Clean and center references, then generate with an installed engine.</li><li>Inspect all sides. Accept or reject the result.</li><li>Separate connected parts and repair small holes.</li><li>Optimize triangles and unwrap UVs before baking an anime texture.</li></ol><p>One photo cannot describe hidden surfaces accurately. Multiple angles help, but do not guarantee a perfect model.</p>${button('close-guide','Got it','','class="a3d-primary"')}</dialog>
+      <dialog id="a3d-settings-dialog" class="a3d-settings-dialog">
+        <div class="a3d-dialog-head">
+          <div>
+            <h2>Geometry & Texture</h2>
+            <p class="a3d-dialog-sub">We'll automatically save your settings for next time</p>
+          </div>
+          <button type="button" class="a3d-dialog-close" data-action="close-settings" aria-label="Close settings">×</button>
+        </div>
+        <div class="a3d-dialog-body">
+          <div class="a3d-setting-row">
+            <div class="a3d-setting-label">
+              <span>Ultra Mesh Quality</span>
+              <span class="a3d-tip" title="Increases marching cubes grid resolution to 384+ and diffusion steps to 50 for ultra-sharp geometric details.">?</span>
+            </div>
+            <label class="a3d-switch">
+              <input type="checkbox" id="a3d-set-ultra" checked>
+              <span class="a3d-slider"></span>
+            </label>
+          </div>
+
+          <div class="a3d-setting-row">
+            <div class="a3d-setting-label">
+              <span>AI Complete</span>
+              <span class="a3d-tip" title="Synthesizes coherent 360° geometry and textures for occluded and unseen back surfaces.">?</span>
+            </div>
+            <label class="a3d-switch">
+              <input type="checkbox" id="a3d-set-aicomplete">
+              <span class="a3d-slider"></span>
+            </label>
+          </div>
+
+          <hr class="a3d-dialog-div">
+
+          <div class="a3d-setting-row">
+            <div class="a3d-setting-label">
+              <span>Texture</span>
+            </div>
+            <label class="a3d-switch">
+              <input type="checkbox" id="a3d-set-texture" checked>
+              <span class="a3d-slider"></span>
+            </label>
+          </div>
+
+          <div class="a3d-setting-block">
+            <div class="a3d-setting-label">
+              <span>Texture Quality</span>
+              <span class="a3d-tip" title="Texture atlas resolution. Higher resolutions preserve razor-sharp logos, text, and micro-details.">?</span>
+            </div>
+            <div class="a3d-setting-segment" id="a3d-quality-group">
+              <button type="button" data-val="2K">2K</button>
+              <button type="button" data-val="4K" class="is-active">4K</button>
+              <button type="button" data-val="8K"><span class="a3d-crown">👑</span> 8K</button>
+            </div>
+          </div>
+
+          <div class="a3d-setting-row">
+            <div class="a3d-setting-label">
+              <span>Remove Lighting</span>
+              <span class="a3d-tip" title="Removes directional shadows and baked lighting highlights from reference photos for a clean albedo/diffuse texture.">?</span>
+              <span class="a3d-badge-new">New</span>
+            </div>
+            <label class="a3d-switch">
+              <input type="checkbox" id="a3d-set-delight">
+              <span class="a3d-slider"></span>
+            </label>
+          </div>
+
+          <div class="a3d-setting-row">
+            <div class="a3d-setting-label">
+              <span>PBR</span>
+              <span class="a3d-tip" title="Physically Based Rendering materials with roughness, metallic, and normal maps for realistic lighting interaction.">?</span>
+            </div>
+            <label class="a3d-switch">
+              <input type="checkbox" id="a3d-set-pbr" checked>
+              <span class="a3d-slider"></span>
+            </label>
+          </div>
+
+          <hr class="a3d-dialog-div">
+
+          <div class="a3d-setting-block">
+            <div class="a3d-setting-label">
+              <span>Topology</span>
+              <span class="a3d-tip" title="Mesh polygon structure. Quads are ideal for animation and subdivision; triangles are standard for game engines and 3D printing.">?</span>
+            </div>
+            <div class="a3d-setting-segment a3d-topology-segment" id="a3d-topology-group">
+              <button type="button" data-val="quad"><span class="a3d-topo-icon">□</span> Quad</button>
+              <button type="button" data-val="triangle" class="is-active"><span class="a3d-topo-icon">△</span> Triangle</button>
+            </div>
+          </div>
+
+          <div class="a3d-setting-block">
+            <div class="a3d-setting-label">
+              <span>Polycount</span>
+              <span class="a3d-tip" title="Target polygon count for geometry decimation.">?</span>
+            </div>
+            <div class="a3d-polycount-row">
+              <div class="a3d-poly-range-wrap">
+                <div class="a3d-poly-labels">
+                  <span>500</span>
+                  <span>2000000</span>
+                </div>
+                <input type="range" id="a3d-set-poly-slider" min="500" max="2000000" step="1000" value="50000">
+              </div>
+              <input type="number" id="a3d-set-poly-input" min="500" max="2000000" value="50000">
+            </div>
+          </div>
+        </div>
+      </dialog>`;
     document.body.append(root);
     root.addEventListener('click', onClick);
     root.addEventListener('change', onChange);
+    root.addEventListener('input', onInput);
     root.addEventListener('dragover', event=>{if(event.target.closest('.a3d-drop')) event.preventDefault();});
     root.addEventListener('drop', event=>{ const target=event.target.closest('[data-view]'); if(target){event.preventDefault(); receive(target.dataset.view,event.dataTransfer.files[0]);} });
     $('#a3d-viewer').addEventListener('error',()=>showError('The 3D preview could not load. Try refreshing Assets or inspect the exported file.'));
+    const setDiag = $('#a3d-settings-dialog');
+    if (setDiag) {
+      setDiag.addEventListener('click', event => { if (event.target === setDiag) setDiag.close(); });
+    }
+    loadSettings();
     root.addEventListener('keydown', event=>{
-      if(event.key==='Escape' && !$('#a3d-guide').open) bridge.close();
+      if(event.key==='Escape' && !$('#a3d-guide').open && !$('#a3d-settings-dialog')?.open) bridge.close();
       if(event.key==='Tab' && !$('#a3d-guide').open){
         const controls=[...root.querySelectorAll('button,input,select,textarea,[tabindex="0"]')].filter(el=>!el.disabled&&el.getClientRects().length);
         if(event.shiftKey&&document.activeElement===controls[0]){event.preventDefault();controls.at(-1)?.focus();}
@@ -166,6 +358,15 @@
     renderEngines();renderQuality();
     if(task?.status==='SUCCEEDED'&&lastAsset!==`${task.id}:${task.quality_status}`){lastAsset=`${task.id}:${task.quality_status}`;loadLibrary();}
   }
+  function onInput(event){
+    const el=event.target;
+    if(el.id==='a3d-set-poly-slider'){
+      const input=$('#a3d-set-poly-input');
+      if(input)input.value=el.value;
+      settings.polycount=Number(el.value);
+      saveSettings();
+    }
+  }
   async function onChange(event){
     const el=event.target;
     if(el.dataset.upload){await receive(el.dataset.upload,el.files[0]);el.value='';}
@@ -175,8 +376,36 @@
     }
     if(el.id==='a3d-engine'){engine=el.value;if(engine==='hunyuan-mv'&&inputMode!=='multi')switchMode('multi');renderEngines();}
     if(el.id==='a3d-prompt')bridge.prompt(el.value);
+    if(el.id==='a3d-set-ultra'){settings.ultra=el.checked;saveSettings();}
+    if(el.id==='a3d-set-aicomplete'){settings.aiComplete=el.checked;saveSettings();}
+    if(el.id==='a3d-set-texture'){settings.texture=el.checked;saveSettings();}
+    if(el.id==='a3d-set-delight'){settings.removeLighting=el.checked;saveSettings();}
+    if(el.id==='a3d-set-pbr'){settings.pbr=el.checked;saveSettings();}
+    if(el.id==='a3d-set-poly-input'){
+      let val=Math.round(Number(el.value)||50000);
+      val=Math.max(500,Math.min(2000000,val));
+      el.value=val;
+      const slider=$('#a3d-set-poly-slider');
+      if(slider)slider.value=val;
+      settings.polycount=val;
+      saveSettings();
+    }
   }
   async function onClick(event){
+    const qBtn=event.target.closest('#a3d-quality-group button');
+    if(qBtn){
+      settings.textureQuality=qBtn.dataset.val;
+      $('#a3d-quality-group').querySelectorAll('button').forEach(b=>b.classList.toggle('is-active',b===qBtn));
+      saveSettings();
+      return;
+    }
+    const tBtn=event.target.closest('#a3d-topology-group button');
+    if(tBtn){
+      settings.topology=tBtn.dataset.val;
+      $('#a3d-topology-group').querySelectorAll('button').forEach(b=>b.classList.toggle('is-active',b===tBtn));
+      saveSettings();
+      return;
+    }
     const engineCard=event.target.closest('[data-engine-card]');
     if(engineCard && !engineCard.classList.contains('is-disabled')){
       engine=engineCard.dataset.engineCard;
@@ -193,6 +422,8 @@
       if(action==='home')return bridge.close();
       if(action==='help')return $('#a3d-guide').showModal();
       if(action==='close-guide')return $('#a3d-guide').close();
+      if(action==='open-settings')return $('#a3d-settings-dialog').showModal();
+      if(action==='close-settings')return $('#a3d-settings-dialog').close();
       if(action==='library')return loadLibrary();
       if(action==='reconnect')return await bridge.reconnect();
       if(action.startsWith('remove-')){const view=action.slice(7),ref=files.get(view);if(ref)URL.revokeObjectURL(ref.url);files.delete(view);return renderFiles();}
@@ -203,10 +434,26 @@
         if(!labels.includes('front'))throw Error('Upload a front reference first.');
         if(inputMode==='multi'&&labels.length<2)throw Error('Upload at least two different angles for multi-view reconstruction.');
         const seed=Number($('#a3d-seed').value);if(!Number.isInteger(seed)||seed<0||seed>2147483647)throw Error('Enter a seed between 0 and 2147483647.');
-        const form=new FormData();for(const view of labels)form.append('images',files.get(view).file);form.append('views',JSON.stringify(labels));form.append('engine',engine);form.append('detail',$('#a3d-detail').value);form.append('seed',String(seed));form.append('remove_background',String($('#a3d-remove-bg').checked));form.append('align',String($('#a3d-align').checked));return bridge.generateImage(form);
+        const form=new FormData();
+        for(const view of labels)form.append('images',files.get(view).file);
+        form.append('views',JSON.stringify(labels));
+        form.append('engine',engine);
+        form.append('detail',$('#a3d-detail').value);
+        form.append('seed',String(seed));
+        form.append('remove_background',String($('#a3d-remove-bg').checked));
+        form.append('align',String($('#a3d-align').checked));
+        form.append('ultra_mesh_quality',String(settings.ultra));
+        form.append('ai_complete',String(settings.aiComplete));
+        form.append('texture',String(settings.texture));
+        form.append('texture_quality',String(settings.textureQuality));
+        form.append('remove_lighting',String(settings.removeLighting));
+        form.append('pbr',String(settings.pbr));
+        form.append('topology',String(settings.topology));
+        form.append('polycount',String(settings.polycount));
+        return bridge.generateImage(form);
       }
       if(['inspect','repair','parts','optimize','texture'].includes(action)){
-        const count=Number($('#a3d-target').value);if(!Number.isInteger(count)||count<100||count>200000)throw Error('Target triangles must be between 100 and 200,000.');
+        const count=Number($('#a3d-target').value);if(!Number.isInteger(count)||count<100||count>2000000)throw Error('Target triangles must be between 100 and 2,000,000.');
         return bridge.edit(state.model3dTask.id,{operation:action,target_faces:count,part:$('#a3d-part').value===''?null:Number($('#a3d-part').value),keep_largest:$('#a3d-largest').checked,color:$('#a3d-color').value,bands:Number($('#a3d-bands').value),use_references:$('#a3d-reference-colors').checked,texture_size:Number($('#a3d-texture-size').value)});
       }
       if(action==='accept'||action==='reject'){const updated=await bridge.imageRequest('POST',`/${state.model3dTask.id}/review`,{decision:action==='accept'?'accepted':'rejected'});bridge.select(updated);return;}
@@ -218,7 +465,7 @@
     }catch(e){showError(e.message||'This action could not finish.');}
   }
   window.Aubit3DStudio={
-    open(data,callbacks){state=data;bridge=callbacks;if(!root)mount();const opening=root.hidden;root.hidden=false;document.body.classList.add('a3d-open');if(opening){previousFocus=document.activeElement;switchStage(stage);switchMode(inputMode);loadLibrary();$('[data-action="home"]').focus();refreshTimer=setInterval(()=>{if(!state.model3dBusy)bridge.reconnect();},30000);}renderStatus();},
+    open(data,callbacks){state=data;bridge=callbacks;if(!root)mount();const opening=root.hidden;root.hidden=false;document.body.classList.add('a3d-open');loadSettings();if(opening){previousFocus=document.activeElement;switchStage(stage);switchMode(inputMode);loadLibrary();$('[data-action="home"]').focus();refreshTimer=setInterval(()=>{if(!state.model3dBusy)bridge.reconnect();},30000);}renderStatus();},
     close(){if(!root)return;root.hidden=true;clearInterval(refreshTimer);document.body.classList.remove('a3d-open');previousFocus?.focus();}
   };
 })();

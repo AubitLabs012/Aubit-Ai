@@ -1,6 +1,7 @@
 import io
 import json
 import os
+from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -108,6 +109,65 @@ class ImageTo3DTests(unittest.TestCase):
                         job_resp = client.get(f"/api/image-to-3d/{task['id']}", headers=headers)
                         self.assertEqual(job_resp.status_code, 200)
                         self.assertEqual(job_resp.json()["data"]["id"], task["id"])
+
+    def test_geometry_texture_settings_forwarded(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"AUBIT_3D_OUTPUT_DIR": directory}):
+            with patch("app.services.image3d_jobs.run_job") as mock_run:
+                with patch("app.services.image3d_jobs.engine_status") as mock_status:
+                    mock_status.return_value = {
+                        "id": "hunyuan-mini",
+                        "name": "Hunyuan3D-2mini",
+                        "available": True,
+                        "message": "Installed locally",
+                        "views": ["front"],
+                        "description": "Stability baseline",
+                        "setup_command": "python setup.py",
+                    }
+                    with TestClient(app) as client:
+                        login = client.post("/api/login", json={"username": "test_img_user", "password": "Password123", "role": "user"})
+                        headers = {"Authorization": f"Bearer {login.json()['data']['access_token']}"}
+
+                        png_bytes = create_test_image()
+                        files = [("images", ("front.png", io.BytesIO(png_bytes), "image/png"))]
+                        form_data = {
+                            "views": json.dumps(["front"]),
+                            "engine": "hunyuan-mini",
+                            "detail": "high",
+                            "remove_background": "true",
+                            "align": "true",
+                            "seed": "42",
+                            "ultra_mesh_quality": "true",
+                            "ai_complete": "true",
+                            "texture": "true",
+                            "texture_quality": "8K",
+                            "remove_lighting": "true",
+                            "pbr": "true",
+                            "topology": "quad",
+                            "polycount": "150000",
+                        }
+                        create_resp = client.post("/api/image-to-3d", headers=headers, files=files, data=form_data)
+                        self.assertEqual(create_resp.status_code, 202)
+                        task = create_resp.json()["data"]
+                        self.assertEqual(task["ultra_mesh_quality"], True)
+                        self.assertEqual(task["ai_complete"], True)
+                        self.assertEqual(task["texture"], True)
+                        self.assertEqual(task["texture_quality"], "8K")
+                        self.assertEqual(task["remove_lighting"], True)
+                        self.assertEqual(task["pbr"], True)
+                        self.assertEqual(task["topology"], "quad")
+                        self.assertEqual(task["polycount"], 150000)
+
+                        job_dir = Path(directory) / "image-jobs" / task["id"]
+                        req_json = json.loads((job_dir / "request.json").read_text())
+                        self.assertEqual(req_json["ultra_mesh_quality"], True)
+                        self.assertEqual(req_json["ai_complete"], True)
+                        self.assertEqual(req_json["texture_quality"], "8K")
+                        self.assertEqual(req_json["remove_lighting"], True)
+                        self.assertEqual(req_json["topology"], "quad")
+                        self.assertEqual(req_json["polycount"], 150000)
+
+                        self.addCleanup(image3d_jobs._active.discard, task["id"])
+                        self.addCleanup(image3d_jobs._lock.release)
 
 
 if __name__ == "__main__":

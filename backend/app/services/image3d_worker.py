@@ -33,6 +33,22 @@ def prepare_reference(image, *, remove_background, align, session=None):
         image.thumbnail((1024,1024), Image.Resampling.LANCZOS)
     return image
 
+def delight_image(image):
+    """Removes directional shadows and baked lighting highlights for clean albedo."""
+    import cv2
+    rgba = np.asarray(image.convert("RGBA"))
+    rgb = rgba[:, :, :3]
+    lab = cv2.cvtColor(rgb, cv2.COLOR_RGB2LAB).astype(np.float32)
+    L = lab[:, :, 0]
+    mask = rgba[:, :, 3] > 48
+    illum = cv2.bilateralFilter(L, d=15, sigmaColor=75, sigmaSpace=75)
+    mean_l = float(np.mean(L[mask])) if mask.any() else 128.0
+    delit_l = np.clip((L / (illum + 1e-4)) * mean_l, 0, 255)
+    lab[:, :, 0] = delit_l
+    delit_rgb = cv2.cvtColor(lab.astype(np.uint8), cv2.COLOR_LAB2RGB)
+    delit_rgba = np.dstack([delit_rgb, rgba[:, :, 3]])
+    return Image.fromarray(delit_rgba)
+
 def generate(task, job, models, progress):
     import torch
     from PIL import Image
@@ -55,6 +71,11 @@ def generate(task, job, models, progress):
             refs[view] = prepare_reference(Image.open(inp_p), remove_background=task["remove_background"], align=task["align"], session=session)
             refs[view].save(ref_p)
     del session
+    if task.get("remove_lighting", False):
+        progress(10, "Removing directional shadows and lighting (Delight)")
+        for view in list(refs.keys()):
+            refs[view] = delight_image(refs[view])
+            refs[view].save(job / f"reference-{view}.png")
     root = models / task["engine_id"]
     progress(15, f"Loading {spec['name']} with memory offloading")
     if spec["family"] == "sf3d":
@@ -108,8 +129,10 @@ def generate(task, job, models, progress):
             p.device = torch.device("cuda")
 
         apply_sequential_cpu_offload(pipeline)
-        resolution = {"low":192,"standard":256,"high":384}[task["detail"]]
-        steps = {"low":20,"standard":30,"high":50}[task["detail"]]
+        is_ultra = task.get("ultra_mesh_quality", True)
+        detail = "high" if is_ultra else task.get("detail", "standard")
+        resolution = {"low": 192, "standard": 256, "high": 384, "ultra": 384}.get(detail, 256)
+        steps = {"low": 20, "standard": 30, "high": 50, "ultra": 50}.get(detail, 30)
         progress(25, "Inferring full geometry from labeled references")
         def callback(index, *_):
             progress(25+int(50*(index+1)/steps), f"Shape diffusion {index+1}/{steps}")
@@ -154,24 +177,45 @@ def main():
             if main_pieces:
                 mesh = trimesh.util.concatenate(main_pieces)
 
-        if len(mesh.faces) > 45000:
-            mesh = mesh.simplify_quadric_decimation(face_count=45000)
+        target_faces = int(task.get("polycount") or 50000)
+        target_faces = max(500, min(target_faces, 2000000))
+        if len(mesh.faces) > target_faces:
+            progress(76, f"Decimating to {target_faces:,} polygons")
+            mesh = mesh.simplify_quadric_decimation(face_count=target_faces)
 
         mesh = repair(mesh)
 
-        progress(82, "Projecting reference colors and details")
+        has_texture = task.get("texture", True)
         refs = {p.stem.removeprefix("reference-"): Image.open(p).convert("RGBA") for p in job.glob("reference-*.png")}
-        if refs and task["engine_id"] != "stable-fast-3d":
-            colors = project_colors(mesh, refs)
-            progress(88, "Baking UV texture atlas")
-            mesh, texture = bake_texture(mesh, colors, size=1024)
-        metadata = {"input_views": task["views"], "has_texture": True, "texture_method": "High-fidelity reference projection & UV texture atlas"}
+        if has_texture and refs and task["engine_id"] != "stable-fast-3d":
+            progress(82, "Projecting reference colors and details")
+            ai_complete = task.get("ai_complete", False)
+            colors = project_colors(mesh, refs, ai_complete=ai_complete)
+            qual = str(task.get("texture_quality", "4K")).upper()
+            atlas_size = {"2K": 2048, "4K": 4096, "8K": 4096}.get(qual, 2048)
+            progress(88, f"Baking {qual} ({atlas_size}x{atlas_size}) UV texture atlas")
+            pbr_enabled = task.get("pbr", True)
+            mesh, texture = bake_texture(mesh, colors, size=atlas_size, pbr=pbr_enabled)
+
+        topology_mode = task.get("topology", "triangle")
+        metadata = {
+            "input_views": task["views"],
+            "has_texture": has_texture,
+            "texture_method": f"High-fidelity reference projection & {task.get('texture_quality', '4K')} UV atlas" if has_texture else "Untextured",
+            "texture_quality": task.get("texture_quality", "4K"),
+            "ultra_mesh_quality": task.get("ultra_mesh_quality", True),
+            "ai_complete": task.get("ai_complete", False),
+            "remove_lighting": task.get("remove_lighting", False),
+            "pbr": task.get("pbr", True),
+            "topology": topology_mode,
+            "polycount": len(mesh.faces)
+        }
     else:
         progress(15, f"Processing: {task['operation']}")
         mesh = trimesh.load(job / "source.glb", force="mesh", process=False)
         validate_mesh(mesh, allow_inward=True)
         mesh, metadata = process_mesh(mesh, task["operation"], task["options"], job)
-    progress(85, "Inspecting geometry and rejecting invalid surfaces")
+    progress(95, "Inspecting geometry and rejecting invalid surfaces")
     trimesh.repair.fix_normals(mesh, multibody=True)
     quality = inspect_mesh(mesh)
     # UV seams duplicate vertices; inspect welds on a copy without changing the atlas.
@@ -180,6 +224,10 @@ def main():
         quality = inspect_mesh(welded)
     mesh.export(job / "model.glb")
     mesh.export(job / "model.stl")
+    try:
+        mesh.export(job / "model.obj")
+    except Exception:
+        pass
     if task["operation"] == "parts" and (job / "parts.glb").exists():
         (job / "parts.glb").replace(job / "model.glb")
     (job / "result.json").write_text(json.dumps({**metadata, "quality": quality, "triangle_count": len(mesh.faces), "quality_checked": True, "pipeline_version": 4}), encoding="utf-8")

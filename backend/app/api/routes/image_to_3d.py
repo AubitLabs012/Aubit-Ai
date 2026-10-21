@@ -22,9 +22,18 @@ def config(user=Depends(require_current_user)):
 @router.post("", response_model=ApiResponse, status_code=202)
 async def create_image_model(background_tasks: BackgroundTasks,
     images: Annotated[list[UploadFile], File()], views: Annotated[str, Form()] = '["front"]',
-    engine: Annotated[str, Form()] = "hunyuan-mini", detail: Annotated[Literal["low", "standard", "high"], Form()] = "standard",
+    engine: Annotated[str, Form()] = "hunyuan-mini", detail: Annotated[Literal["low", "standard", "high", "ultra"], Form()] = "standard",
     remove_background: Annotated[bool, Form()] = True, align: Annotated[bool, Form()] = True,
-    seed: Annotated[int, Form(ge=0, le=2147483647)] = 12345, user=Depends(require_current_user)):
+    seed: Annotated[int, Form(ge=0, le=2147483647)] = 12345,
+    ultra_mesh_quality: Annotated[bool, Form()] = True,
+    ai_complete: Annotated[bool, Form()] = False,
+    texture: Annotated[bool, Form()] = True,
+    texture_quality: Annotated[Literal["2K", "4K", "8K"], Form()] = "4K",
+    remove_lighting: Annotated[bool, Form()] = False,
+    pbr: Annotated[bool, Form()] = True,
+    topology: Annotated[Literal["triangle", "quad"], Form()] = "triangle",
+    polycount: Annotated[int, Form(ge=500, le=2000000)] = 50000,
+    user=Depends(require_current_user)):
     try:
         try:
             labels = json.loads(views)
@@ -38,7 +47,12 @@ async def create_image_model(background_tasks: BackgroundTasks,
             if len(data) > MAX_IMAGE_BYTES:
                 raise HTTPException(413, "Each reference image must be 10 MB or smaller.")
             uploads.append((label, data, image.filename or "reference.png"))
-        task = await asyncio.to_thread(image3d_jobs.prepare_job, uploads, engine=engine, detail=detail, remove_background=remove_background, align=align, seed=seed)
+        task = await asyncio.to_thread(image3d_jobs.prepare_job, uploads, engine=engine, detail=detail,
+                                      remove_background=remove_background, align=align, seed=seed,
+                                      ultra_mesh_quality=ultra_mesh_quality, ai_complete=ai_complete,
+                                      texture=texture, texture_quality=texture_quality,
+                                      remove_lighting=remove_lighting, pbr=pbr,
+                                      topology=topology, polycount=polycount)
     except InvalidImage as exc:
         raise HTTPException(400, str(exc)) from exc
     finally:
@@ -49,13 +63,14 @@ async def create_image_model(background_tasks: BackgroundTasks,
 
 class EditRequest(BaseModel):
     operation: Literal["inspect", "repair", "parts", "optimize", "texture"]
-    target_faces: int = Field(default=20000, ge=100, le=200000)
+    target_faces: int = Field(default=50000, ge=100, le=2000000)
     part: int | None = Field(default=None, ge=0, le=10000)
     keep_largest: bool = False
     color: str = Field(default="#75aaff", pattern=r"^#[0-9a-fA-F]{6}$")
     bands: int = Field(default=4, ge=2, le=8)
     use_references: bool = True
-    texture_size: Literal[512, 1024, 2048] = 1024
+    texture_size: Literal[512, 1024, 2048, 4096, 8192] = 2048
+    topology: Literal["triangle", "quad"] = "triangle"
 
 @router.post("/{task_id}/edit", response_model=ApiResponse, status_code=202)
 def edit(task_id: str, payload: EditRequest, background_tasks: BackgroundTasks, user=Depends(require_current_user)):

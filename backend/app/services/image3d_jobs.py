@@ -56,7 +56,9 @@ def _new_task(**kwargs):
                 pass
         raise
 
-def prepare_job(images, *, engine="hunyuan-mini", detail="standard", remove_background=True, align=True, seed=12345):
+def prepare_job(images, *, engine="hunyuan-mini", detail="standard", remove_background=True, align=True, seed=12345,
+                ultra_mesh_quality=True, ai_complete=False, texture=True, texture_quality="4K",
+                remove_lighting=False, pbr=True, topology="triangle", polycount=50000):
     if engine not in ENGINES:
         raise HTTPException(400, "Unknown engine.")
     spec = engine_status(engine)
@@ -72,6 +74,10 @@ def prepare_job(images, *, engine="hunyuan-mini", detail="standard", remove_back
         raise HTTPException(503, f"{spec['name']}: {spec['message']}. {spec['setup_command']}")
     task, job = _new_task(engine=spec["name"], engine_id=engine, operation="generate", detail=detail,
                           remove_background=remove_background, align=align, seed=seed, views=views,
+                          ultra_mesh_quality=ultra_mesh_quality, ai_complete=ai_complete,
+                          texture=texture, texture_quality=texture_quality,
+                          remove_lighting=remove_lighting, pbr=pbr,
+                          topology=topology, polycount=polycount,
                           prompt=f"Image to 3D: {decoded[0][2]}", interpreted_as=Path(decoded[0][2]).stem)
     try:
         for view, image, _ in decoded:
