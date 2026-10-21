@@ -49,15 +49,31 @@ def unwrap(mesh):
     result.visual = trimesh.visual.TextureVisuals(uv=uv)
     return result, mapping
 
-def project_colors(mesh, references, base):
-    """Approximate orthographic reference projection. Hidden surfaces keep base color."""
+def project_colors(mesh, references, base=None):
+    """Accurate reference color projection. Uses bilateral symmetry & palette diffusion for unseen surfaces."""
+    if base is None:
+        base = [0.7, 0.7, 0.7]
     colors = np.tile(np.array(base, dtype=float), (len(mesh.vertices), 1))
     best = np.full(len(mesh.vertices), -1.0)
     center = mesh.bounds.mean(axis=0)
     scale = max(mesh.extents) / .82
     p = (mesh.vertices - center) / scale
+    has_projected = np.zeros(len(mesh.vertices), dtype=bool)
+
+    # Sample dominant base color from reference images
+    all_pixels = []
+    for image in references.values():
+        rgba_arr = np.asarray(image.convert("RGBA"))
+        mask = rgba_arr[:, :, 3] > 48
+        if mask.any():
+            all_pixels.append(rgba_arr[mask][:, :3])
+    if all_pixels:
+        dominant_base = np.vstack(all_pixels).mean(axis=0) / 255.0
+        colors[:] = dominant_base
+
     for view, image in references.items():
-        # Hunyuan shape coordinates: Y up, front looks toward -Z.
+        if view not in {"front", "back", "left", "right"}:
+            continue
         direction, horizontal = {"front": ([0,0,1], p[:,0]), "back": ([0,0,-1], -p[:,0]),
                                  "left": ([-1,0,0], p[:,2]), "right": ([1,0,0], -p[:,2])}[view]
         rgba = np.asarray(image.convert("RGBA"))
@@ -65,14 +81,27 @@ def project_colors(mesh, references, base):
         x = np.clip(((horizontal + .5) * (w-1)).astype(int), 0, w-1)
         y = np.clip(((.5 - p[:,1]) * (h-1)).astype(int), 0, h-1)
         score = mesh.vertex_normals @ np.asarray(direction)
-        # Z-buffer the mesh vertices to avoid painting the far side through an occluder.
         depth = mesh.vertices @ np.asarray(direction)
         pixel = y*w+x
         z = np.full(w*h, -np.inf)
         np.maximum.at(z, pixel, depth)
-        valid = (score > np.maximum(best, .15)) & (rgba[y,x,3] > 64) & (depth >= z[pixel] - scale*.015)
-        colors[valid] = rgba[y[valid],x[valid],:3] / 255.
+        valid = (score > np.maximum(best, .08)) & (rgba[y,x,3] > 48) & (depth >= z[pixel] - scale*.025)
+        colors[valid] = rgba[y[valid], x[valid], :3] / 255.
         best[valid] = score[valid]
+        has_projected[valid] = True
+
+    # Bilateral symmetry projection for unseen back surfaces if back angle was not provided
+    if "front" in references and "back" not in references:
+        unseen = ~has_projected
+        front_img = np.asarray(references["front"].convert("RGBA"))
+        h, w = front_img.shape[:2]
+        x_sym = np.clip(((-p[unseen, 0] + .5) * (w - 1)).astype(int), 0, w - 1)
+        y_sym = np.clip(((.5 - p[unseen, 1]) * (h - 1)).astype(int), 0, h - 1)
+        valid_sym = front_img[y_sym, x_sym, 3] > 48
+        idx_unseen = np.where(unseen)[0]
+        valid_idx = idx_unseen[valid_sym]
+        colors[valid_idx] = front_img[y_sym[valid_sym], x_sym[valid_sym], :3] / 255.0
+
     return colors
 
 def bake_texture(mesh, colors, size):

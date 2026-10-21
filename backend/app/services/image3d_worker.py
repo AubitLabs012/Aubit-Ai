@@ -127,14 +127,19 @@ def main():
         print(stage, flush=True)
     import trimesh
     try:
-        from app.services.mesh_studio import inspect_mesh, process_mesh
+        from app.services.mesh_studio import inspect_mesh, process_mesh, project_colors
         from app.services.mesh_quality import validate_mesh
     except ImportError:
-        from mesh_studio import inspect_mesh, process_mesh
+        from mesh_studio import inspect_mesh, process_mesh, project_colors
         from mesh_quality import validate_mesh
     if task["operation"] == "generate":
         mesh = generate(task, job, models, progress)
-        metadata = {"input_views": task["views"], "has_texture": task["engine_id"] == "stable-fast-3d"}
+        progress(78, "Projecting reference colors and details")
+        refs = {p.stem.removeprefix("reference-"): Image.open(p).convert("RGBA") for p in job.glob("reference-*.png")}
+        if refs and task["engine_id"] != "stable-fast-3d":
+            colors = project_colors(mesh, refs)
+            mesh.visual.vertex_colors = (colors * 255).astype(np.uint8)
+        metadata = {"input_views": task["views"], "has_texture": True, "texture_method": "Exact reference color projection"}
     else:
         progress(15, f"Processing: {task['operation']}")
         mesh = trimesh.load(job / "source.glb", force="mesh", process=False)
