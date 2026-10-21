@@ -50,26 +50,27 @@ def unwrap(mesh):
     return result, mapping
 
 def project_colors(mesh, references, base=None):
-    """Accurate reference color projection. Uses bilateral symmetry & palette diffusion for unseen surfaces."""
-    if base is None:
-        base = [0.7, 0.7, 0.7]
-    colors = np.tile(np.array(base, dtype=float), (len(mesh.vertices), 1))
+    """Accurate reference color projection. Uses bilateral symmetry & 3D spatial diffusion for unseen surfaces."""
+    import numpy as np
+    from scipy.spatial import cKDTree
+    from scipy.ndimage import distance_transform_edt
+
+    colors = np.zeros((len(mesh.vertices), 3), dtype=float)
     best = np.full(len(mesh.vertices), -1.0)
+    has_projected = np.zeros(len(mesh.vertices), dtype=bool)
+
     center = mesh.bounds.mean(axis=0)
     scale = max(mesh.extents) / .82
     p = (mesh.vertices - center) / scale
-    has_projected = np.zeros(len(mesh.vertices), dtype=bool)
 
-    # Sample dominant base color from reference images
+    # Sample dominant base color as fallback
     all_pixels = []
     for image in references.values():
         rgba_arr = np.asarray(image.convert("RGBA"))
         mask = rgba_arr[:, :, 3] > 48
         if mask.any():
             all_pixels.append(rgba_arr[mask][:, :3])
-    if all_pixels:
-        dominant_base = np.vstack(all_pixels).mean(axis=0) / 255.0
-        colors[:] = dominant_base
+    fallback_color = np.vstack(all_pixels).mean(axis=0) / 255.0 if all_pixels else np.array([0.7, 0.7, 0.7])
 
     for view, image in references.items():
         if view not in {"front", "back", "left", "right"}:
@@ -78,6 +79,19 @@ def project_colors(mesh, references, base=None):
                                  "left": ([-1,0,0], p[:,2]), "right": ([1,0,0], -p[:,2])}[view]
         rgba = np.asarray(image.convert("RGBA"))
         h, w = rgba.shape[:2]
+
+        # Extrapolate edge pixels so silhouette boundary vertices do not hit transparency
+        alpha_mask = rgba[:, :, 3] > 48
+        if alpha_mask.any():
+            dist, nearest = distance_transform_edt(~alpha_mask, return_indices=True)
+            rgb_solid = rgba[:, :, :3].copy()
+            pad_mask = (~alpha_mask) & (dist <= 12)
+            rgb_solid[pad_mask] = rgb_solid[nearest[0][pad_mask], nearest[1][pad_mask]]
+            valid_pixels = alpha_mask | pad_mask
+        else:
+            rgb_solid = rgba[:, :, :3]
+            valid_pixels = np.ones((h, w), dtype=bool)
+
         x = np.clip(((horizontal + .5) * (w-1)).astype(int), 0, w-1)
         y = np.clip(((.5 - p[:,1]) * (h-1)).astype(int), 0, h-1)
         score = mesh.vertex_normals @ np.asarray(direction)
@@ -85,28 +99,46 @@ def project_colors(mesh, references, base=None):
         pixel = y*w+x
         z = np.full(w*h, -np.inf)
         np.maximum.at(z, pixel, depth)
-        valid = (score > np.maximum(best, .08)) & (rgba[y,x,3] > 48) & (depth >= z[pixel] - scale*.025)
-        colors[valid] = rgba[y[valid], x[valid], :3] / 255.
+
+        valid = (score > np.maximum(best, .02)) & valid_pixels[y, x] & (depth >= z[pixel] - scale*.035)
+        colors[valid] = rgb_solid[y[valid], x[valid]] / 255.0
         best[valid] = score[valid]
         has_projected[valid] = True
 
     # Bilateral symmetry projection for unseen back surfaces if back angle was not provided
     if "front" in references and "back" not in references:
-        unseen = ~has_projected
         front_img = np.asarray(references["front"].convert("RGBA"))
         h, w = front_img.shape[:2]
-        x_sym = np.clip(((-p[unseen, 0] + .5) * (w - 1)).astype(int), 0, w - 1)
-        y_sym = np.clip(((.5 - p[unseen, 1]) * (h - 1)).astype(int), 0, h - 1)
-        valid_sym = front_img[y_sym, x_sym, 3] > 48
-        idx_unseen = np.where(unseen)[0]
-        valid_idx = idx_unseen[valid_sym]
-        colors[valid_idx] = front_img[y_sym[valid_sym], x_sym[valid_sym], :3] / 255.0
+        alpha_front = front_img[:, :, 3] > 48
+        dist, nearest = distance_transform_edt(~alpha_front, return_indices=True)
+        front_solid = front_img[:, :, :3].copy()
+        pad = (~alpha_front) & (dist <= 12)
+        front_solid[pad] = front_solid[nearest[0][pad], nearest[1][pad]]
+        front_valid = alpha_front | pad
+
+        back_facing = (mesh.vertex_normals @ np.asarray([0, 0, -1]) > 0.02) & (~has_projected)
+        x_sym = np.clip(((-p[:, 0] + .5) * (w - 1)).astype(int), 0, w - 1)
+        y_sym = np.clip(((.5 - p[:, 1]) * (h - 1)).astype(int), 0, h - 1)
+        valid_sym = back_facing & front_valid[y_sym, x_sym]
+        colors[valid_sym] = front_solid[y_sym[valid_sym], x_sym[valid_sym]] / 255.0
+        has_projected[valid_sym] = True
+
+    # 3D spatial diffusion for any remaining uncolored vertices (crevices, undersides)
+    if has_projected.any():
+        if not has_projected.all():
+            tree = cKDTree(mesh.vertices[has_projected])
+            _, nearest_idx = tree.query(mesh.vertices[~has_projected])
+            colors[~has_projected] = colors[has_projected][nearest_idx]
+    else:
+        colors[:] = fallback_color
 
     return colors
 
 def bake_texture(mesh, colors, size):
     """Rasterize interpolated colors into a non-overlapping xatlas UV atlas using fast OpenCV rasterization."""
     import cv2
+    from PIL import Image
+    from scipy.ndimage import distance_transform_edt
     unwrapped, mapping = unwrap(mesh)
     mapped_colors = colors[mapping]
     atlas = np.full((size, size, 3), 230, dtype=np.uint8)
@@ -128,13 +160,12 @@ def bake_texture(mesh, colors, size):
         atlas[:, :] = [180, 180, 180]
     else:
         # Pad chart borders to prevent dark seams during mipmapping.
-        from scipy.ndimage import distance_transform_edt
         distance, nearest = distance_transform_edt(~has_cov, return_indices=True)
-        pad = (~has_cov) & (distance <= 4)
+        pad = (~has_cov) & (distance <= 6)
         atlas[pad] = atlas[nearest[0][pad], nearest[1][pad]]
 
     texture = Image.fromarray(atlas)
-    unwrapped.visual.material = trimesh.visual.material.PBRMaterial(baseColorTexture=texture, metallicFactor=0, roughnessFactor=1, doubleSided=False)
+    unwrapped.visual.material = trimesh.visual.material.PBRMaterial(baseColorTexture=texture, metallicFactor=0.05, roughnessFactor=0.8, doubleSided=False)
     unwrapped.visual.vertex_colors = (mapped_colors * 255).astype(np.uint8)
     return unwrapped, texture
 

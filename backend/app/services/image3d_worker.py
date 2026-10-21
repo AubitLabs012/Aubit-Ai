@@ -6,6 +6,9 @@ from pathlib import Path
 import sys
 import traceback
 
+import numpy as np
+from PIL import Image
+
 BACKEND = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(BACKEND))
 from app.services.image3d_engines import ENGINES
@@ -44,8 +47,13 @@ def generate(task, job, models, progress):
         session = new_session("u2net", providers=["CPUExecutionProvider"])
     refs = {}
     for view in task["views"]:
-        refs[view] = prepare_reference(Image.open(job / f"input-{view}.png"), remove_background=task["remove_background"], align=task["align"], session=session)
-        refs[view].save(job / f"reference-{view}.png")
+        ref_p = job / f"reference-{view}.png"
+        inp_p = job / f"input-{view}.png"
+        if ref_p.is_file() and not inp_p.is_file():
+            refs[view] = Image.open(ref_p).convert("RGBA")
+        else:
+            refs[view] = prepare_reference(Image.open(inp_p), remove_background=task["remove_background"], align=task["align"], session=session)
+            refs[view].save(ref_p)
     del session
     root = models / task["engine_id"]
     progress(15, f"Loading {spec['name']} with memory offloading")
@@ -127,19 +135,37 @@ def main():
         print(stage, flush=True)
     import trimesh
     try:
-        from app.services.mesh_studio import inspect_mesh, process_mesh, project_colors
+        from app.services.mesh_studio import inspect_mesh, process_mesh, project_colors, bake_texture, repair
         from app.services.mesh_quality import validate_mesh
     except ImportError:
-        from mesh_studio import inspect_mesh, process_mesh, project_colors
+        from mesh_studio import inspect_mesh, process_mesh, project_colors, bake_texture, repair
         from mesh_quality import validate_mesh
     if task["operation"] == "generate":
         mesh = generate(task, job, models, progress)
-        progress(78, "Projecting reference colors and details")
+        progress(72, "Refining geometry and removing noise")
+        min_thick = mesh.extents[0] * 0.12
+        if mesh.extents[2] < min_thick:
+            factor = min_thick / max(mesh.extents[2], 1e-4)
+            mesh.vertices[:, 2] *= min(factor, 8.0)
+
+        pieces = mesh.split(only_watertight=False)
+        if len(pieces) > 1:
+            main_pieces = [p for p in pieces if len(p.faces) >= max(30, int(len(mesh.faces) * 0.002))]
+            if main_pieces:
+                mesh = trimesh.util.concatenate(main_pieces)
+
+        if len(mesh.faces) > 45000:
+            mesh = mesh.simplify_quadric_decimation(face_count=45000)
+
+        mesh = repair(mesh)
+
+        progress(82, "Projecting reference colors and details")
         refs = {p.stem.removeprefix("reference-"): Image.open(p).convert("RGBA") for p in job.glob("reference-*.png")}
         if refs and task["engine_id"] != "stable-fast-3d":
             colors = project_colors(mesh, refs)
-            mesh.visual.vertex_colors = (colors * 255).astype(np.uint8)
-        metadata = {"input_views": task["views"], "has_texture": True, "texture_method": "Exact reference color projection"}
+            progress(88, "Baking UV texture atlas")
+            mesh, texture = bake_texture(mesh, colors, size=1024)
+        metadata = {"input_views": task["views"], "has_texture": True, "texture_method": "High-fidelity reference projection & UV texture atlas"}
     else:
         progress(15, f"Processing: {task['operation']}")
         mesh = trimesh.load(job / "source.glb", force="mesh", process=False)
