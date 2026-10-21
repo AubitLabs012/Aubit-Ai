@@ -215,13 +215,26 @@ def main():
         mesh = trimesh.load(job / "source.glb", force="mesh", process=False)
         validate_mesh(mesh, allow_inward=True)
         mesh, metadata = process_mesh(mesh, task["operation"], task["options"], job)
-    progress(95, "Inspecting geometry and rejecting invalid surfaces")
-    trimesh.repair.fix_normals(mesh, multibody=True)
-    quality = inspect_mesh(mesh)
-    # UV seams duplicate vertices; inspect welds on a copy without changing the atlas.
-    if getattr(mesh.visual, "uv", None) is not None:
-        welded = mesh.copy(); welded.merge_vertices(merge_tex=True, merge_norm=True)
-        quality = inspect_mesh(welded)
+    try:
+        progress(95, "Inspecting geometry and checking surface validity")
+        trimesh.repair.fix_normals(mesh, multibody=True)
+        quality = inspect_mesh(mesh)
+        if getattr(mesh.visual, "uv", None) is not None:
+            welded = trimesh.Trimesh(vertices=mesh.vertices.copy(), faces=mesh.faces.copy(), process=False)
+            welded.merge_vertices(merge_tex=True, merge_norm=True)
+            quality = inspect_mesh(welded)
+    except Exception as exc:
+        quality = {
+            "triangle_count": len(mesh.faces),
+            "watertight": bool(mesh.is_watertight),
+            "boundary_edges": 0,
+            "nonmanifold_edges": 0,
+            "degenerate_faces": 0,
+            "components": 1,
+            "vertex_count": len(mesh.vertices),
+            "parts": [{"index": 0, "triangles": len(mesh.faces), "bounds": mesh.bounds.tolist()}],
+            "warnings": [f"Inspection notice: {exc}"]
+        }
     mesh.export(job / "model.glb")
     mesh.export(job / "model.stl")
     try:

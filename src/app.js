@@ -3658,9 +3658,9 @@ function trustedLocalModelUrl(value, extension) {
 
 
 
-async function requestTextTo3D(method, path = "", body = null) {
+async function requestTextTo3D(method, path = "", body = null, isRetry = false) {
 
-  const token = await (model3dSessionPromise ||= ensureGuestSession().finally(() => {
+  const token = await (model3dSessionPromise ||= ensureGuestSession(isRetry).finally(() => {
 
     model3dSessionPromise = null;
 
@@ -3684,6 +3684,12 @@ async function requestTextTo3D(method, path = "", body = null) {
 
   });
 
+  if (response.status === 401 && !isRetry) {
+    state.authToken = "";
+    state.authReady = null;
+    return requestTextTo3D(method, path, body, true);
+  }
+
   const payload = await response.json().catch(() => ({}));
 
   if (!response.ok) {
@@ -3698,9 +3704,9 @@ async function requestTextTo3D(method, path = "", body = null) {
 
 
 
-async function requestImageTo3D(method, path = "", body = null) {
+async function requestImageTo3D(method, path = "", body = null, isRetry = false) {
 
-  const token = await (model3dSessionPromise ||= ensureGuestSession().finally(() => {
+  const token = await (model3dSessionPromise ||= ensureGuestSession(isRetry).finally(() => {
 
     model3dSessionPromise = null;
 
@@ -3731,6 +3737,12 @@ async function requestImageTo3D(method, path = "", body = null) {
     body: isFormData ? body : (body ? JSON.stringify(body) : undefined),
 
   });
+
+  if (response.status === 401 && !isRetry) {
+    state.authToken = "";
+    state.authReady = null;
+    return requestImageTo3D(method, path, body, true);
+  }
 
   const payload = await response.json().catch(() => ({}));
 
@@ -7759,15 +7771,29 @@ async function resolveApiBaseUrl() {
 
 
 
-async function ensureGuestSession() {
-
-  if (state.authToken) {
-
-    return state.authToken;
-
+function isJwtExpired(token) {
+  if (!token || typeof token !== "string") return true;
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return true;
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+    if (payload.exp && payload.exp * 1000 < Date.now() + 60000) {
+      return true;
+    }
+    return false;
+  } catch (_) {
+    return true;
   }
+}
 
+async function ensureGuestSession(forceRefresh = false) {
 
+  if (forceRefresh) {
+    state.authToken = "";
+    state.authReady = null;
+  } else if (state.authToken && !isJwtExpired(state.authToken)) {
+    return state.authToken;
+  }
 
   if (state.authReady) {
 

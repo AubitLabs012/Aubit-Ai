@@ -28,7 +28,7 @@ class Settings:
     jwt_secret = os.getenv("JWT_SECRET", "change-me-in-production")
     jwt_issuer = os.getenv("JWT_ISSUER", "aubit-backend")
     jwt_audience = os.getenv("JWT_AUDIENCE", "aubit-clients")
-    jwt_expiry_minutes = int(os.getenv("JWT_EXPIRY_MINUTES", "60"))
+    jwt_expiry_minutes = int(os.getenv("JWT_EXPIRY_MINUTES", "43200")) # 30 days for local studio
 
     allowed_origins = [
         origin.strip()

@@ -8,24 +8,45 @@ try:
 except ImportError:
     from mesh_quality import validate_mesh
 
-def components(mesh):
-    return sorted(mesh.split(only_watertight=False), key=lambda m: (-len(m.faces), *m.centroid))
+def components(mesh, max_parts=50, min_faces=10):
+    """Memory-safe extraction of significant connected components without exploding RAM."""
+    if len(mesh.faces) == 0:
+        return []
+    face_comps = trimesh.graph.connected_components(mesh.face_adjacency, nodes=np.arange(len(mesh.faces)))
+    face_comps = sorted(face_comps, key=len, reverse=True)
+    significant = [fc for fc in face_comps if len(fc) >= min_faces][:max_parts]
+    if not significant and face_comps:
+        significant = [face_comps[0]]
+    return [mesh.submesh(fc, append=True) for fc in significant]
 
 def inspect_mesh(mesh):
     report = validate_mesh(mesh)
     counts = np.bincount(mesh.edges_unique_inverse)
-    pieces = components(mesh)
+    # Memory-safe graph connected components: zero Trimesh submesh allocations, zero texture cloning
+    if len(mesh.faces) > 0:
+        face_comps = trimesh.graph.connected_components(mesh.face_adjacency, nodes=np.arange(len(mesh.faces)))
+        face_comps = sorted(face_comps, key=len, reverse=True)
+    else:
+        face_comps = []
+
+    parts_info = []
+    for i, fc in enumerate(face_comps[:50]):
+        fc_faces = mesh.faces[fc]
+        fc_verts = mesh.vertices[fc_faces.ravel()]
+        bounds = [fc_verts.min(axis=0).tolist(), fc_verts.max(axis=0).tolist()]
+        parts_info.append({"index": i, "triangles": len(fc), "bounds": bounds})
+
     report.update(watertight=bool(mesh.is_watertight), boundary_edges=int((counts == 1).sum()),
                   nonmanifold_edges=int((counts > 2).sum()), degenerate_faces=int((mesh.area_faces < 1e-12).sum()),
-                  components=len(pieces), vertex_count=len(mesh.vertices),
-                  parts=[{"index": i, "triangles": len(p.faces), "bounds": p.bounds.tolist()} for i, p in enumerate(pieces[:100])])
+                  components=len(face_comps), vertex_count=len(mesh.vertices),
+                  parts=parts_info)
     warnings = []
     if not mesh.is_watertight:
         warnings.append("Open surface: inspect holes before printing.")
     if report["nonmanifold_edges"]:
         warnings.append("Non-manifold edges need manual repair.")
-    if len(pieces) > 1:
-        warnings.append(f"{len(pieces)} disconnected parts: inspect loose fragments.")
+    if len(face_comps) > 1:
+        warnings.append(f"{len(face_comps)} disconnected parts: inspect loose fragments.")
     # A thin object may be intentional. Flag it for inspection rather than guessing.
     if min(mesh.extents) / max(mesh.extents) < 0.015:
         warnings.append("Very thin reconstruction: verify the side views.")
