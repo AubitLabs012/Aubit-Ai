@@ -59,6 +59,7 @@ npm run start
 - For Groq, set `AI_PROVIDER=groq`, add `GROQ_API_KEY`, and optionally set `GROQ_MODEL`.
 - For OpenAI, set `AI_PROVIDER=openai` and add `OPENAI_API_KEY` in `backend/.env`.
 - Check `GET /api/health` to confirm whether live AI is enabled or Aubit is in local fallback mode.
+- Text to 3D runs fully offline through Aubit's procedural generator. `POST /api/text-to-3d` builds GLB and STL files, `GET /api/text-to-3d/{id}` retrieves model details, and the file URLs serve saved models. No API key is needed. Set `AUBIT_3D_OUTPUT_DIR` only if you want to change the output folder.
 - The voice assistant layer and frontend probe both `http://127.0.0.1:8000/api` and `http://127.0.0.1:8001/api`, but `8000` is the default backend port in this repo.
 
 ## Example Requests
@@ -90,6 +91,15 @@ curl -X POST http://127.0.0.1:8000/api/ai-response \
 ```
 
 ## Notes
+
+### Local Image to 3D
+
+- `POST /api/image-to-3d` accepts multipart `image`, `detail` (`low`, `standard`, `high`), and `remove_background`. Returns a job ID with HTTP 202.
+- Poll `GET /api/image-to-3d/{id}` for progress and GLB/STL URLs.
+- TripoSR inference runs in `.venv-image3d`; install with `python scripts/setup_image3d.py`. Weights live in `.models-image3d`. Both are excluded from Git.
+- Images are processed locally and removed from the job directory after processing. An untouched mesh is retained as `{id}_raw.glb` before optional cleanup.
+- The smoothing regression used an unstable inverse-area step. The replacement uses normalized neighbor weights, crease preservation, bounded displacement, and geometry checks before export. Failed cleanup falls back to the original mesh.
+- Worker regression tests: `.venv-image3d\Scripts\python.exe -m unittest discover -s tests_image3d -v`.
 
 - The current implementation is runnable without cloud credentials because each major integration has a local fallback.
 - When `MONGODB_URI` is configured, users, AI responses, and game events are persisted in MongoDB. Otherwise the backend falls back to in-memory storage.

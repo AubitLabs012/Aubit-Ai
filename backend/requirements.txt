@@ -1,4 +1,7 @@
 fastapi==0.116.1
+numpy==2.3.4
+trimesh==5.1.1
+pillow==12.2.0
 uvicorn[standard]==0.35.0
 python-multipart==0.0.20
 pydantic==2.11.7

@@ -9,7 +9,7 @@
     "start": "node scripts/start-electron.js",
     "dev": "node scripts/start-electron.js",
     "backend:start": "node scripts/start-backend.js",
-    "check": "node --check electron/main.js && node --check electron/preload.js && node --check src/widget.js && node --check src/app.js",
+    "check": "node --check electron/main.js && node --check electron/preload.js && node --check src/widget.js && node --check src/app.js && node --check src/model3d-studio.js",
     "dist": "electron-builder --win nsis"
   },
   "devDependencies": {
@@ -31,6 +31,8 @@
       "backend/app/**/*",
       "backend/.env.example",
       "backend/requirements.txt",
+      "backend/requirements-image3d.txt",
+      "backend/scripts/**/*",
       "backend/README.md",
       "*.html",
       "README.md",
@@ -45,6 +47,8 @@
           "app/**/*",
           ".env.example",
           "requirements.txt",
+          "requirements-image3d.txt",
+          "scripts/**/*",
           "README.md"
         ]
       }

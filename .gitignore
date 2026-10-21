@@ -7,6 +7,8 @@ tmp/
 *.log
 backend/.env
 backend/.venv/
+backend/.venv-image3d/
+backend/.models-image3d/
 backend/storage/uploads/
 __pycache__/
 *.py[cod]

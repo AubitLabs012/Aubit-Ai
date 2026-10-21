@@ -49,6 +49,10 @@ class AIResponseRequest(BaseModel):
     context: dict[str, Any] = Field(default_factory=dict)
 
 
+class TextTo3DRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=800)
+
+
 class GameActionRequest(BaseModel):
     user_id: str = Field(min_length=1, max_length=128)
     game_type: str = Field(min_length=1, max_length=64)

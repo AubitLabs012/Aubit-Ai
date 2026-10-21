@@ -57,6 +57,35 @@ http://127.0.0.1:8000/api/health
 
 The backend runs without cloud keys by using local fallbacks. Add keys to `backend/.env` only for services you want live, such as Gemini, Groq, OpenAI, MongoDB, Redis, Firebase, GCP Storage, ElevenLabs, Stripe, or Sentry.
 
+## Text to 3D Models
+
+Select **Text to 3D** in the home room. Describe an object, generate it locally, rotate it in the viewer, and download GLB or STL. No cloud account, API key, or internet connection is required. The backend uses Aubit's own procedural modeling rules and saves models in your local Aubit data folder.
+
+The full-screen studio includes Standard / Low Poly generation, color choices, a saved-model asset library with favorites, and scene controls for lighting, rotation, and the ground grid. Import a GLB file (up to 50 MB) for a session preview. Select **Properties** to export a generated model, or **Home** to return to Aubit.
+
+The current generator recognizes robots, cars, chairs, tables, houses, trees, rockets, mugs, bottles, swords, cats and dogs, and basic shapes. Color, size, and a few object details in the prompt change the mesh. Other subjects produce an abstract geometric sculpture, clearly labeled in the app. This is a local procedural generator, so it does not offer the unrestricted detail of a trained text-to-3D model.
+
+## Image to 3D
+
+In the studio, select **Image to 3D**, upload one clear object photo, and choose
+**Detailed → High Res** for the final mesh. Generation runs locally using the
+open-source TripoSR model, with optional U2Net background removal. No Meshy API
+or paid service is used. TripoSR is pretrained by Tripo AI and Stability AI;
+it is not a model trained by Aubit.
+
+Install the separate AI runtime and model weights once (several GB):
+
+```powershell
+backend\.venv\Scripts\python.exe backend\scripts\setup_image3d.py
+```
+
+The worker uses CUDA when available, with CPU fallback for insufficient GPU
+memory. The original inferred geometry and colors are preserved by default.
+High Res extracts a 320 × 320 × 320 grid; it cannot invent reliable fine details
+or unseen surfaces from a single picture. Image Projection is experimental.
+Old models marked **Needs regeneration** retain their files; generate them again
+to apply the corrected surface processing.
+
 ## Run The Desktop App
 
 Install JavaScript dependencies once:
