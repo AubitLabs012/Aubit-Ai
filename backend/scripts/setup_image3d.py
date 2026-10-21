@@ -14,6 +14,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--engine", choices=ENGINES, default="hunyuan-mini")
     parser.add_argument("--download-only", action="store_true")
+    parser.add_argument("--token", default=os.environ.get("HF_TOKEN"), help="Hugging Face access token for gated models")
     args = parser.parse_args()
     python, models = runtime_paths()
     spec = ENGINES[args.engine]
@@ -35,7 +36,8 @@ def main():
             subprocess.run([str(python), "-m", "pip", "install", "-r", str(BACKEND / "requirements-image3d.txt")], env=env, check=True)
         update("Downloading pinned weights (several GB; resumable)")
         prefix = spec["folder"] + "/" if spec["folder"] else ""
-        script = "from huggingface_hub import snapshot_download; snapshot_download(repo_id=%r, revision=%r, local_dir=%r, allow_patterns=%r, max_workers=2)" % (spec["repo"], spec["revision"], str(root), [prefix + "config.yaml", prefix + spec["weight"], "LICENSE*", "NOTICE*", "README.md"])
+        token_repr = repr(args.token) if args.token else "None"
+        script = "from huggingface_hub import snapshot_download; snapshot_download(repo_id=%r, revision=%r, local_dir=%r, allow_patterns=%r, max_workers=2, token=%s)" % (spec["repo"], spec["revision"], str(root), [prefix + "config.yaml", prefix + spec["weight"], "LICENSE*", "NOTICE*", "README.md"], token_repr)
         subprocess.run([str(python), "-c", script], env=env, check=True)
         vendor = BACKEND / "app" / "vendor" / {"hunyuan2": "hunyuan2", "hunyuan21": "hunyuan21", "sf3d": "sf3d"}[spec["family"]]
         if spec["family"] == "hunyuan21":
