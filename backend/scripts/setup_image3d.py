@@ -22,7 +22,7 @@ def main():
     root.mkdir(parents=True, exist_ok=True)
     cache = models / "cache"
     cache.mkdir(exist_ok=True)
-    env = dict(os.environ, HF_HOME=str(cache), HUGGINGFACE_HUB_CACHE=str(cache / "hub"), PIP_CACHE_DIR=str(cache / "pip"), TEMP=str(cache), TMP=str(cache), HF_HUB_DOWNLOAD_TIMEOUT="120")
+    env = dict(os.environ, HF_HOME=str(cache), HUGGINGFACE_HUB_CACHE=str(cache / "hub"), PIP_CACHE_DIR=str(cache / "pip"), TEMP=str(cache), TMP=str(cache), HF_HUB_DOWNLOAD_TIMEOUT="120", HF_HUB_DISABLE_SYMLINKS_WARNING="1")
     env.setdefault("HF_TOKEN_PATH", str(Path.home() / ".cache/huggingface/token"))
     def update(message):
         print(message, flush=True)

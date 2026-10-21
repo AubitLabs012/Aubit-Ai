@@ -72,12 +72,34 @@ def generate(task, job, models, progress):
             pipeline = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(str(root), subfolder=spec["folder"], use_safetensors=spec["weight"].endswith("safetensors"), device="cpu", dtype=torch.float16)
         finally:
             torch.set_default_dtype(previous_dtype)
-        # Sequential offload works even when a full transformer cannot fit into 6 GB.
-        from accelerate import cpu_offload
-        for component in (pipeline.conditioner, pipeline.model, pipeline.vae):
-            component.eval()
-            cpu_offload(component, execution_device=torch.device("cuda"), offload_buffers=True)
-        pipeline.device = torch.device("cuda")
+        def apply_sequential_cpu_offload(p):
+            orig_encode_cond = p.encode_cond
+            orig_export = p._export
+
+            def wrapped_encode_cond(*args, **kwargs):
+                p.conditioner.to("cuda", dtype=torch.float16)
+                try:
+                    return orig_encode_cond(*args, **kwargs)
+                finally:
+                    p.conditioner.to("cpu")
+                    torch.cuda.empty_cache()
+                    p.model.to("cuda", dtype=torch.float16)
+
+            def wrapped_export(*args, **kwargs):
+                p.model.to("cpu")
+                torch.cuda.empty_cache()
+                p.vae.to("cuda", dtype=torch.float16)
+                try:
+                    return orig_export(*args, **kwargs)
+                finally:
+                    p.vae.to("cpu")
+                    torch.cuda.empty_cache()
+
+            p.encode_cond = wrapped_encode_cond
+            p._export = wrapped_export
+            p.device = torch.device("cuda")
+
+        apply_sequential_cpu_offload(pipeline)
         resolution = {"low":192,"standard":256,"high":384}[task["detail"]]
         steps = {"low":20,"standard":30,"high":50}[task["detail"]]
         progress(25, "Inferring full geometry from labeled references")
