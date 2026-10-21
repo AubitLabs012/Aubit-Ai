@@ -76,37 +76,37 @@ def project_colors(mesh, references, base):
     return colors
 
 def bake_texture(mesh, colors, size):
-    """Rasterize interpolated colors into a non-overlapping xatlas UV atlas."""
+    """Rasterize interpolated colors into a non-overlapping xatlas UV atlas using fast OpenCV rasterization."""
+    import cv2
     unwrapped, mapping = unwrap(mesh)
-    colors = colors[mapping]
-    atlas = np.full((size,size,3), 230, dtype=np.uint8)
-    coverage = np.zeros((size,size), bool)
-    uv = unwrapped.visual.uv * (size-1)
-    uv[:,1] = size-1-uv[:,1]
-    for face in unwrapped.faces:
-        a,b,c = uv[face]
-        lo = np.maximum(np.floor(np.min([a,b,c],axis=0)).astype(int),0)
-        hi = np.minimum(np.ceil(np.max([a,b,c],axis=0)).astype(int),size-1)
-        xx,yy = np.meshgrid(np.arange(lo[0],hi[0]+1),np.arange(lo[1],hi[1]+1))
-        den = (b[1]-c[1])*(a[0]-c[0])+(c[0]-b[0])*(a[1]-c[1])
-        if abs(den) < 1e-10:
-            continue
-        u = ((b[1]-c[1])*(xx-c[0])+(c[0]-b[0])*(yy-c[1]))/den
-        v = ((c[1]-a[1])*(xx-c[0])+(a[0]-c[0])*(yy-c[1]))/den
-        w = 1-u-v
-        inside = (u>=-.001)&(v>=-.001)&(w>=-.001)
-        rgb = u[...,None]*colors[face[0]]+v[...,None]*colors[face[1]]+w[...,None]*colors[face[2]]
-        atlas[yy[inside],xx[inside]] = np.clip(rgb[inside]*255,0,255).astype(np.uint8)
-        coverage[yy[inside],xx[inside]] = True
-    if not coverage.any():
-        raise ValueError("UV baking produced an empty atlas.")
-    # Pad chart borders to prevent dark seams during mipmapping.
-    from scipy.ndimage import distance_transform_edt
-    distance, nearest = distance_transform_edt(~coverage, return_indices=True)
-    pad = (~coverage)&(distance<=4)
-    atlas[pad] = atlas[nearest[0][pad],nearest[1][pad]]
+    mapped_colors = colors[mapping]
+    atlas = np.full((size, size, 3), 230, dtype=np.uint8)
+    coverage = np.zeros((size, size), dtype=np.uint8)
+    uv = unwrapped.visual.uv * (size - 1)
+    uv[:, 1] = size - 1 - uv[:, 1]
+
+    tri_pts = np.round(uv[unwrapped.faces]).astype(np.int32)
+    face_colors = np.round(mapped_colors[unwrapped.faces].mean(axis=1) * 255).astype(np.uint8)
+
+    for i in range(len(unwrapped.faces)):
+        pts = tri_pts[i]
+        col = [int(c) for c in face_colors[i]]
+        cv2.fillConvexPoly(atlas, pts, col)
+        cv2.fillConvexPoly(coverage, pts, 1)
+
+    has_cov = coverage > 0
+    if not has_cov.any():
+        atlas[:, :] = [180, 180, 180]
+    else:
+        # Pad chart borders to prevent dark seams during mipmapping.
+        from scipy.ndimage import distance_transform_edt
+        distance, nearest = distance_transform_edt(~has_cov, return_indices=True)
+        pad = (~has_cov) & (distance <= 4)
+        atlas[pad] = atlas[nearest[0][pad], nearest[1][pad]]
+
     texture = Image.fromarray(atlas)
     unwrapped.visual.material = trimesh.visual.material.PBRMaterial(baseColorTexture=texture, metallicFactor=0, roughnessFactor=1, doubleSided=False)
+    unwrapped.visual.vertex_colors = (mapped_colors * 255).astype(np.uint8)
     return unwrapped, texture
 
 def process_mesh(mesh, operation, options, job):
@@ -133,6 +133,10 @@ def process_mesh(mesh, operation, options, job):
         mesh, _ = unwrap(mesh)
         metadata.update(has_uv=True, topology="Optimized triangles", target_faces=target)
     elif operation == "texture":
+        if len(mesh.faces) > 40000:
+            target = min(options.get("target_faces") or 25000, 35000)
+            mesh = mesh.simplify_quadric_decimation(face_count=target)
+            mesh = repair(mesh)
         base = [int(options["color"][i:i+2],16)/255. for i in (1,3,5)]
         refs = {p.stem.removeprefix("reference-"): Image.open(p).convert("RGBA") for p in job.glob("reference-*.png")} if options["use_references"] else {}
         colors = project_colors(mesh, refs, base)

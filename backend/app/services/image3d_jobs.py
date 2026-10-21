@@ -22,6 +22,24 @@ def write_task(task):
     temporary.replace(path)
 
 def _new_task(**kwargs):
+    if _lock.locked():
+        stale = True
+        for task_id in list(_active):
+            task_path = model_output_dir() / f"{task_id}.json"
+            if task_path.is_file():
+                try:
+                    data = json.loads(task_path.read_text(encoding="utf-8"))
+                    if data.get("status") in {"PENDING", "IN_PROGRESS"}:
+                        stale = False
+                except Exception:
+                    pass
+        if stale:
+            _active.clear()
+            try:
+                _lock.release()
+            except RuntimeError:
+                pass
+
     if not _lock.acquire(blocking=False):
         raise HTTPException(409, "A local 3D job is already running. Wait for it to finish.")
     task = dict(id=uuid4().hex, source="image", status="PENDING", stage="Queued", progress=0, **kwargs)
@@ -31,7 +49,11 @@ def _new_task(**kwargs):
         _active.add(task["id"])
         return task, job
     except Exception:
-        _lock.release()
+        if _lock.locked():
+            try:
+                _lock.release()
+            except RuntimeError:
+                pass
         raise
 
 def prepare_job(images, *, engine="hunyuan-mini", detail="standard", remove_background=True, align=True, seed=12345):
@@ -60,7 +82,11 @@ def prepare_job(images, *, engine="hunyuan-mini", detail="standard", remove_back
         return task
     except Exception:
         _active.discard(task["id"])
-        _lock.release()
+        if _lock.locked():
+            try:
+                _lock.release()
+            except RuntimeError:
+                pass
         raise
 
 def prepare_edit(source_id, operation, options):
@@ -84,7 +110,11 @@ def prepare_edit(source_id, operation, options):
         return task
     except Exception:
         _active.discard(task["id"])
-        _lock.release()
+        if _lock.locked():
+            try:
+                _lock.release()
+            except RuntimeError:
+                pass
         raise
 
 def run_job(task):
@@ -117,7 +147,11 @@ def run_job(task):
         for path in job.glob("input-*.png"):
             path.unlink(missing_ok=True)
         _active.discard(task["id"])
-        _lock.release()
+        if _lock.locked():
+            try:
+                _lock.release()
+            except RuntimeError:
+                pass
 
 def get_job(task_id):
     task = TextTo3DService().get_model(task_id)
