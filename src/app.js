@@ -8363,21 +8363,13 @@ function setEntryAuthBusy(isBusy) {
 
 function syncEntryLearnerAge() {
 
-  const savedAge = writeStoredStudyLearnerAge(entryAgeInput?.value || "");
+  const rawValue = entryAgeInput?.value || readStoredStudyLearnerAge() || "14";
 
-  if (!savedAge) {
-
-    setEntryAuthFeedback("Enter an age between 5 and 100 so Aubit can teach at the right level.");
-
-    return "";
-
-  }
-
-
+  const savedAge = writeStoredStudyLearnerAge(rawValue) || "14";
 
   state.studyLearnerAge = savedAge;
 
-  if (entryAgeInput) {
+  if (entryAgeInput && !entryAgeInput.value) {
 
     entryAgeInput.value = savedAge;
 
@@ -8863,9 +8855,11 @@ async function handleSignInSubmit(event) {
 
       });
 
-      setEntryAuthFeedback("Signed in using local mode. Tap the pod to enter Aubit.", "success");
+      setEntryAuthFeedback("Signed in using local mode. Entering Aubit...", "success");
 
       revealFloorGateway(offlineDisplayName);
+
+      setTimeout(() => completeEntryAuth(), 300);
 
       return;
 
@@ -8883,9 +8877,11 @@ async function handleSignInSubmit(event) {
 
     });
 
-    setEntryAuthFeedback("Sign in successful. Tap the pod to enter Aubit.", "success");
+    setEntryAuthFeedback("Sign in successful. Entering Aubit...", "success");
 
     revealFloorGateway(displayName);
+
+    setTimeout(() => completeEntryAuth(), 300);
 
   } catch (error) {
 
@@ -9003,9 +8999,11 @@ async function handleSignUpSubmit(event) {
 
       });
 
-      setEntryAuthFeedback("Sign up complete. Tap the pod to enter Aubit.", "success");
+      setEntryAuthFeedback("Sign up complete. Entering Aubit...", "success");
 
       revealFloorGateway(resolvedDisplayName);
+
+      setTimeout(() => completeEntryAuth(), 300);
 
       return;
 
@@ -9089,9 +9087,11 @@ function handleGuestEntry() {
 
   });
 
-  setEntryAuthFeedback("Guest mode ready. Tap the pod to enter Aubit.", "success");
+  setEntryAuthFeedback("Guest mode ready. Entering Aubit...", "success");
 
   revealFloorGateway(guestName);
+
+  setTimeout(() => completeEntryAuth(), 300);
 
 }
 

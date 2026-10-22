@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from copy import deepcopy
+from pathlib import Path
 from typing import Optional
 
 from app.db.mongo import MongoClientManager
@@ -9,8 +11,45 @@ from app.db.mongo import MongoClientManager
 
 class InMemoryCollection:
     _stores: dict[str, dict[str, dict]] = {}
+    _loaded: bool = False
+    _storage_path: Path | None = None
+
+    @classmethod
+    def _get_path(cls) -> Path:
+        if cls._storage_path is None:
+            data_dir = Path(__file__).resolve().parents[2] / "data"
+            data_dir.mkdir(parents=True, exist_ok=True)
+            cls._storage_path = data_dir / "local_db.json"
+        return cls._storage_path
+
+    @classmethod
+    def _load_all(cls) -> None:
+        if cls._loaded:
+            return
+        cls._loaded = True
+        try:
+            path = cls._get_path()
+            if path.is_file():
+                content = path.read_text(encoding="utf-8")
+                if content.strip():
+                    data = json.loads(content)
+                    if isinstance(data, dict):
+                        cls._stores = data
+        except Exception:
+            pass
+
+    @classmethod
+    def _save_all(cls) -> None:
+        try:
+            path = cls._get_path()
+            temp = path.with_suffix(".tmp")
+            temp.write_text(json.dumps(cls._stores, indent=2), encoding="utf-8")
+            temp.replace(path)
+        except Exception:
+            pass
 
     def __init__(self, namespace: str) -> None:
+        self.__class__._load_all()
         self.namespace = namespace
         self._stores.setdefault(namespace, {})
 
@@ -20,11 +59,13 @@ class InMemoryCollection:
 
     def upsert(self, key: str, value: dict) -> dict:
         self._stores[self.namespace][key] = deepcopy(value)
+        self.__class__._save_all()
         return deepcopy(value)
 
     def append_event(self, key: str, event: dict) -> list[dict]:
         existing = self._stores[self.namespace].setdefault(key, {"events": []})
         existing.setdefault("events", []).append(deepcopy(event))
+        self.__class__._save_all()
         return deepcopy(existing["events"])
 
 

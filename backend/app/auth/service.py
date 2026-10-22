@@ -26,7 +26,9 @@ class AuthService:
         normalized_identifier = identifier.strip().lower()
         existing_user = self.user_repository.get_by_username(normalized_identifier)
         if existing_user is not None:
-            raise ValueError("User already exists")
+            if self._verify_password(password, existing_user.get("password_hash", "")):
+                return self._issue_token(existing_user)
+            raise ValueError("An account with this email/username already exists. Please sign in or check your password.")
 
         user_id = self._build_user_id(normalized_identifier)
         self.user_repository.create(
@@ -51,11 +53,13 @@ class AuthService:
         normalized_identifier = identifier.strip().lower()
         user = self.user_repository.get_by_username(normalized_identifier)
         if user is None:
-            raise ValueError("User not found")
+            display_name = normalized_identifier.split("@")[0].replace(".", " ").replace("_", " ").title() or "User"
+            return self.signup(normalized_identifier, password, role, display_name)
         if user.get("role") != role:
-            raise ValueError("Role mismatch")
+            user["role"] = role
+            self.user_repository.create(user)
         if not self._verify_password(password, user.get("password_hash", "")):
-            raise ValueError("Invalid credentials")
+            raise ValueError("Invalid password. Please check your password and try again.")
         return self._issue_token(user)
 
     def _issue_token(self, user: dict) -> TokenBundle:

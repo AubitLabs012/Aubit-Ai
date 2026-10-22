@@ -10,5 +10,6 @@ backend/.venv/
 backend/.venv-image3d/
 backend/.models-image3d/
 backend/storage/uploads/
+backend/data/
 __pycache__/
 *.py[cod]
