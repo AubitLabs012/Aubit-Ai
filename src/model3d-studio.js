@@ -547,18 +547,19 @@
       if(action==='spin'){viewer.autoRotate=!viewer.autoRotate;target.classList.toggle('is-active',viewer.autoRotate);}
       if(action==='light')viewer.exposure=viewer.exposure>1?0.8:1.5;
     }catch(e){showError(e.message||'This action could not finish.');}
-    const assetCard=event.target.closest('.a3d-asset');
-    if(assetCard){
-      const idx=Number(assetCard.dataset.asset);
-      if(assets[idx]){
-        bridge.select(assets[idx]);
-        switchStage('geometry');
-        renderAssets();
-        renderStatus();
-      }
-      return;
-    }
   }
+  const assetCard=event.target.closest('.a3d-asset');
+  if(assetCard){
+    const idx=Number(assetCard.dataset.asset);
+    if(assets[idx]){
+      bridge.select(assets[idx]);
+      switchStage('geometry');
+      renderAssets();
+      renderStatus();
+    }
+    return;
+  }
+}
   window.Aubit3DStudio={
     open(data,callbacks){state=data;bridge=callbacks;if(!root)mount();const opening=root.hidden;root.hidden=false;document.body.classList.add('a3d-open');loadSettings();if(opening){previousFocus=document.activeElement;switchStage(stage);switchMode(inputMode);loadLibrary();$('[data-action="home"]').focus();refreshTimer=setInterval(()=>{if(!state.model3dBusy)bridge.reconnect();},30000);}renderStatus();},
     close(){if(!root)return;root.hidden=true;clearInterval(refreshTimer);document.body.classList.remove('a3d-open');previousFocus?.focus();}
