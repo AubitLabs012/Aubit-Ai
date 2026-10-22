@@ -1,7 +1,7 @@
 /* Aubit local 3D studio: real engine capabilities and non-destructive editing. */
 (() => {
   const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const glyphs = {cube:'<path d="m12 3 9 5v9l-9 5-9-5V8Zm0 10 9-5M3 8l9 5v9"/>',image:'<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m4 18 6-6 4 4 3-3 4 5"/>',spark:'<path d="m12 2 3 7 7 3-7 3-3 7-3-7-7-3 7-3Z"/>',parts:'<path d="m3 6 5-3 5 3-5 3Zm0 0v6l5 3V9m5-3v6l-5 3m8-2 5 3v6l-5 3-5-3v-6Zm0 6 5-3m-5 3-5-3m5 3v6"/>',uv:'<path d="M3 3h18v18H3Zm6 0v18m6-18v18M3 9h18M3 15h18"/>',layers:'<path d="m12 2 10 5-10 5-10-5Z"/><path d="m2 12 10 5 10-5"/><path d="m2 17 10 5 10-5"/>',brush:'<path d="m8 15 11-12 3 3-12 11M8 15c-5-2-3 5-6 6 7 1 10-1 8-4Z"/>',arrow:'<path d="m9 5 7 7-7 7"/>',close:'<path d="m6 6 12 12M6 18 18 6"/>',down:'<path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/>',rotate:'<path d="M3 10a9 9 0 1 1 2 8M3 3v7h7"/>',check:'<path d="m4 12 5 5L20 6"/>'};
+  const glyphs = {cube:'<path d="m12 3 9 5v9l-9 5-9-5V8Zm0 10 9-5M3 8l9 5v9"/>',image:'<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m4 18 6-6 4 4 3-3 4 5"/>',spark:'<path d="m12 2 3 7 7 3-7 3-3 7-3-7-7-3 7-3Z"/>',parts:'<path d="m3 6 5-3 5 3-5 3Zm0 0v6l5 3V9m5-3v6l-5 3m8-2 5 3v6l-5 3-5-3v-6Zm0 6 5-3m-5 3-5-3m5 3v6"/>',uv:'<path d="M3 3h18v18H3Zm6 0v18m6-18v18M3 9h18M3 15h18"/>',layers:'<path d="m12 2 10 5-10 5-10-5Z"/><path d="m2 12 10 5 10-5"/><path d="m2 17 10 5 10-5"/>',brush:'<path d="m8 15 11-12 3 3-12 11M8 15c-5-2-3 5-6 6 7 1 10-1 8-4Z"/>',arrow:'<path d="m9 5 7 7-7 7"/>',close:'<path d="m6 6 12 12M6 18 18 6"/>',down:'<path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/>',rotate:'<path d="M3 10a9 9 0 1 1 2 8M3 3v7h7"/>',check:'<path d="m4 12 5 5L20 6"/>',eye:'<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',trash:'<path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2m-6 5v6m4-6v6"/>'};
   const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${glyphs[name] || glyphs.cube}</svg>`;
   const stages = [ ['input','image','Input','Single or Multi-View Input'], ['geometry','cube','Geometry','High-Quality Geometry'], ['parts','parts','Parts','Part Refinement'], ['uv','uv','UV','Retopology + UV'], ['texture','brush','Texture','Anime Texture Studio'] ];
   const views = ['front','left','back','right'];
@@ -11,14 +11,14 @@
     'hunyuan-2.1': { glyph: 'spark', subtitle: 'higher-detail mode', desc: 'Keep this as a candidate once we\'ve verified that shape generation reliably works with offloading.' },
     'stable-fast-3d': { glyph: 'layers', subtitle: 'different reconstruction approach', desc: 'Generates UV-mapped textured assets, but its approximately 6 GB VRAM requirement is borderline and Windows support is experimental.' },
   };
-  let root, bridge, state, stage='input', inputMode='single', engine='hunyuan-mini', assets=[], lastAsset='', currentUrl='', error='', previousFocus, refreshTimer;
+  let root, bridge, state, stage='input', inputMode='single', engine='hunyuan-mini', assets=[], lastAsset='', currentUrl='', error='', previousFocus, refreshTimer, modelPendingDelete = null;
   const files = new Map();
   const $ = s => root.querySelector(s);
   const button = (action, label, glyph='', extra='') => `<button type="button" data-action="${action}" ${extra}>${glyph?icon(glyph):''}${label}</button>`;
 
   const defaultSettings = {
     ultra: true,
-    aiComplete: false,
+    aiComplete: true,
     texture: true,
     textureQuality: '4K',
     removeLighting: false,
@@ -117,7 +117,7 @@
             </div>
             <div id="a3d-engine-status" class="a3d-engine-status"></div>
             ${button('reconnect','Refresh engine status','rotate','class="a3d-subtle"')}
-            <label class="a3d-field">Geometry detail<select id="a3d-detail"><option value="standard">Balanced · 256 grid / 30 steps</option><option value="high">High · 384 grid / 50 steps</option><option value="low">Preview · 192 grid / 20 steps</option></select></label>
+            <label class="a3d-field">Geometry detail<select id="a3d-detail"><option value="standard">Balanced · 256 grid / 22 steps (~22s)</option><option value="high">High · 256 grid / 24 steps (~25s)</option><option value="low">Preview · 192 grid / 15 steps (~15s)</option></select></label>
             <label class="a3d-field">Seed<input id="a3d-seed" type="number" min="0" max="2147483647" value="12345"></label>
             <button type="button" class="a3d-settings-pill-btn" data-action="open-settings">
               <span class="a3d-settings-pill-icon">${icon('spark')}</span>
@@ -256,6 +256,22 @@
             </div>
           </div>
         </div>
+      </dialog>
+      <dialog id="a3d-delete-dialog" class="a3d-delete-dialog">
+        <div class="a3d-dialog-head">
+          <div>
+            <h2>Delete 3D Model?</h2>
+            <p class="a3d-dialog-sub">Permanently remove this asset from your local machine</p>
+          </div>
+          <button type="button" class="a3d-dialog-close" data-action="cancel-delete" aria-label="Cancel">×</button>
+        </div>
+        <div class="a3d-dialog-body">
+          <p id="a3d-delete-msg" class="a3d-dialog-desc">Are you sure you want to permanently delete this model? The GLB, STL, and texture files will be removed from your machine.</p>
+        </div>
+        <div class="a3d-dialog-footer">
+          <button type="button" class="a3d-btn-cancel" data-action="cancel-delete">Cancel</button>
+          <button type="button" class="a3d-btn-danger" data-action="confirm-delete">${icon('trash')} Delete Model</button>
+        </div>
       </dialog>`;
     document.body.append(root);
     root.addEventListener('click', onClick);
@@ -268,9 +284,14 @@
     if (setDiag) {
       setDiag.addEventListener('click', event => { if (event.target === setDiag) setDiag.close(); });
     }
+    const delDiag = $('#a3d-delete-dialog');
+    if (delDiag) {
+      delDiag.addEventListener('click', event => { if (event.target === delDiag) { modelPendingDelete = null; delDiag.close(); } });
+    }
     loadSettings();
     root.addEventListener('keydown', event=>{
-      if(event.key==='Escape' && !$('#a3d-guide').open && !$('#a3d-settings-dialog')?.open) bridge.close();
+      if(event.key==='Escape' && !$('#a3d-guide').open && !$('#a3d-settings-dialog')?.open && !$('#a3d-delete-dialog')?.open) bridge.close();
+      if(event.key==='Escape' && $('#a3d-delete-dialog')?.open) { modelPendingDelete = null; $('#a3d-delete-dialog').close(); }
       if(event.key==='Tab' && !$('#a3d-guide').open){
         const controls=[...root.querySelectorAll('button,input,select,textarea,[tabindex="0"]')].filter(el=>!el.disabled&&el.getClientRects().length);
         if(event.shiftKey&&document.activeElement===controls[0]){event.preventDefault();controls.at(-1)?.focus();}
@@ -333,7 +354,21 @@
     $('#a3d-asset-count').textContent=assets.length;
     $('#a3d-assets-list').innerHTML=assets.length?assets.map((asset,i)=>{
       const url=bridge.url(asset.model_urls?.glb,'glb');
-      return `<button class="a3d-asset ${state.model3dTask?.id===asset.id?'selected':''}" data-asset="${i}">${url?`<model-viewer src="${esc(url)}" loading="lazy" reveal="auto" interaction-prompt="none" alt="${esc(asset.interpreted_as)}"></model-viewer>`:icon('cube')}<span class="a3d-asset-name">${esc(asset.interpreted_as||'Local model')}</span><small class="${['invalid','rejected'].includes(asset.quality_status)?'a3d-bad':''}">${esc(asset.quality_status==='invalid'?'Needs regeneration':asset.quality_status||'Unreviewed')} · ${Number(asset.triangle_count||0).toLocaleString()} tris</small></button>`;
+      const isSelected = state.model3dTask?.id===asset.id;
+      return `<div class="a3d-asset ${isSelected?'selected':''}" data-asset="${i}">
+        <div class="a3d-asset-thumb-wrap" data-action="view-asset" data-asset="${i}">
+          ${url?`<model-viewer src="${esc(url)}" loading="lazy" reveal="auto" interaction-prompt="none" alt="${esc(asset.interpreted_as)}"></model-viewer>`:icon('cube')}
+          <span class="a3d-asset-hover-pill">${icon('eye')} View</span>
+        </div>
+        <div class="a3d-asset-info" data-action="view-asset" data-asset="${i}">
+          <span class="a3d-asset-name" title="${esc(asset.interpreted_as||'Local model')}">${esc(asset.interpreted_as||'Local model')}</span>
+          <small class="${['invalid','rejected'].includes(asset.quality_status)?'a3d-bad':''}">${esc(asset.quality_status==='invalid'?'Needs regeneration':asset.quality_status||'Unreviewed')} · ${Number(asset.triangle_count||0).toLocaleString()} tris</small>
+        </div>
+        <div class="a3d-asset-actions">
+          <button type="button" class="a3d-asset-act-btn a3d-asset-act-view ${isSelected?'is-active':''}" data-action="view-asset" data-asset="${i}" title="View in 3D studio">${icon('eye')} View</button>
+          <button type="button" class="a3d-asset-act-btn a3d-asset-act-del" data-action="delete-asset" data-asset="${i}" title="Delete model">${icon('trash')} Delete</button>
+        </div>
+      </div>`;
     }).join(''):'<p class="a3d-empty">Your generated models<br>will appear here.</p>';
   }
   function renderQuality(){
@@ -413,11 +448,60 @@
       renderEngines();
       return;
     }
-    const assetButton=event.target.closest('[data-asset]');if(assetButton){bridge.select(assets[Number(assetButton.dataset.asset)]);renderAssets();return;}
-    const target=event.target.closest('[data-action]');if(!target||target.disabled)return;
-    const action=target.dataset.action;error='';
-    try{
-      if(action.startsWith('stage-'))return switchStage(action.slice(6));
+    const target=event.target.closest('[data-action]');
+    if(target && !target.disabled){
+      const action=target.dataset.action;error='';
+      try{
+        if(action==='view-asset'){
+          const idx=Number(target.dataset.asset);
+          if(assets[idx]){
+            bridge.select(assets[idx]);
+            switchStage('geometry');
+            renderAssets();
+            renderStatus();
+          }
+          return;
+        }
+        if(action==='delete-asset'){
+          const idx=Number(target.dataset.asset);
+          if(assets[idx]){
+            modelPendingDelete = assets[idx];
+            const name = modelPendingDelete.interpreted_as || 'this model';
+            $('#a3d-delete-msg').innerHTML = `Are you sure you want to permanently delete <strong>${esc(name)}</strong>?<br><span style="color:#8ba4c4;font-size:11px;margin-top:6px;display:inline-block">The GLB, STL, and associated textures will be removed from your machine.</span>`;
+            $('#a3d-delete-dialog').showModal();
+          }
+          return;
+        }
+        if(action==='cancel-delete'){
+          modelPendingDelete = null;
+          $('#a3d-delete-dialog').close();
+          return;
+        }
+        if(action==='confirm-delete'){
+          if(modelPendingDelete){
+            const delId = modelPendingDelete.id;
+            const delName = modelPendingDelete.interpreted_as || 'Model';
+            try {
+              await bridge.delete(delId);
+              assets = assets.filter(a => a.id !== delId);
+              if(state.model3dTask?.id === delId){
+                state.model3dTask = assets[0] || null;
+              }
+              renderAssets();
+              renderStatus();
+              $('#a3d-delete-dialog').close();
+              error = '';
+              state.model3dNotice = `Deleted "${delName}".`;
+              renderStatus();
+            } catch(e) {
+              showError(e.message || 'Could not delete model.');
+            } finally {
+              modelPendingDelete = null;
+            }
+          }
+          return;
+        }
+        if(action.startsWith('stage-'))return switchStage(action.slice(6));
       if(action.startsWith('mode-'))return switchMode(action.slice(5));
       if(action==='home')return bridge.close();
       if(action==='help')return $('#a3d-guide').showModal();
@@ -463,6 +547,17 @@
       if(action==='spin'){viewer.autoRotate=!viewer.autoRotate;target.classList.toggle('is-active',viewer.autoRotate);}
       if(action==='light')viewer.exposure=viewer.exposure>1?0.8:1.5;
     }catch(e){showError(e.message||'This action could not finish.');}
+    const assetCard=event.target.closest('.a3d-asset');
+    if(assetCard){
+      const idx=Number(assetCard.dataset.asset);
+      if(assets[idx]){
+        bridge.select(assets[idx]);
+        switchStage('geometry');
+        renderAssets();
+        renderStatus();
+      }
+      return;
+    }
   }
   window.Aubit3DStudio={
     open(data,callbacks){state=data;bridge=callbacks;if(!root)mount();const opening=root.hidden;root.hidden=false;document.body.classList.add('a3d-open');loadSettings();if(opening){previousFocus=document.activeElement;switchStage(stage);switchMode(inputMode);loadLibrary();$('[data-action="home"]').focus();refreshTimer=setInterval(()=>{if(!state.model3dBusy)bridge.reconnect();},30000);}renderStatus();},

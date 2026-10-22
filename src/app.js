@@ -3786,6 +3786,8 @@ function renderTextTo3DBoard() {
 
     library: () => requestTextTo3D("GET"),
 
+    delete: (id) => requestTextTo3D("DELETE", `/${id}`),
+
     reconnect: refreshTextTo3DConfig,
 
     url: trustedLocalModelUrl,

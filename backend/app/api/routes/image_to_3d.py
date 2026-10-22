@@ -96,3 +96,11 @@ def get_job(task_id: str, request: Request, user=Depends(require_current_user)):
     if task["status"] == "SUCCEEDED":
         task = with_image_file_urls(task, request)
     return ApiResponse(message="Local job status", data=task)
+
+@router.delete("/{task_id}", response_model=ApiResponse)
+def delete_image_job(task_id: str, user=Depends(require_current_user)):
+    tid = valid_task_id(task_id)
+    success = TextTo3DService().delete_model(tid)
+    if not success:
+        raise HTTPException(status_code=404, detail="3D model not found or already deleted.")
+    return ApiResponse(message="3D model deleted successfully", data={"id": tid, "deleted": True})

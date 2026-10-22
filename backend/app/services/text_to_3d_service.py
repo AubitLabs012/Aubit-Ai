@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 from pathlib import Path
 from uuid import uuid4
 
@@ -76,3 +77,22 @@ class TextTo3DService:
         if not path.is_file():
             raise HTTPException(status_code=404, detail="This 3D model file was not found.")
         return path
+
+    def delete_model(self, task_id: str) -> bool:
+        directory = model_output_dir()
+        found = False
+        for f in directory.glob(f"{task_id}*"):
+            try:
+                if f.is_file():
+                    f.unlink()
+                    found = True
+            except Exception:
+                pass
+        job_dir = directory / "image-jobs" / task_id
+        if job_dir.exists() and job_dir.is_dir():
+            try:
+                shutil.rmtree(job_dir, ignore_errors=True)
+                found = True
+            except Exception:
+                pass
+        return found

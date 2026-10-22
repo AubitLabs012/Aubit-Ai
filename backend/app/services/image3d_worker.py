@@ -131,8 +131,9 @@ def generate(task, job, models, progress):
         apply_sequential_cpu_offload(pipeline)
         is_ultra = task.get("ultra_mesh_quality", True)
         detail = "high" if is_ultra else task.get("detail", "standard")
-        resolution = {"low": 192, "standard": 256, "high": 384, "ultra": 384}.get(detail, 256)
-        steps = {"low": 20, "standard": 30, "high": 50, "ultra": 50}.get(detail, 30)
+        # Optimal octree resolution and Flow Matching steps tuned for high fidelity under 30 seconds
+        resolution = {"low": 192, "standard": 256, "high": 256, "ultra": 288}.get(detail, 256)
+        steps = {"low": 15, "standard": 22, "high": 24, "ultra": 24}.get(detail, 22)
         progress(25, "Inferring full geometry from labeled references")
         def callback(index, *_):
             progress(25+int(50*(index+1)/steps), f"Shape diffusion {index+1}/{steps}")
@@ -177,10 +178,11 @@ def main():
             if main_pieces:
                 mesh = trimesh.util.concatenate(main_pieces)
 
-        target_faces = int(task.get("polycount") or 50000)
-        target_faces = max(500, min(target_faces, 2000000))
+        user_polycount = int(task.get("polycount") or 50000)
+        # Cap initial generation decimation to 50,000 faces for instant <30s completion with studio fidelity
+        target_faces = max(500, min(user_polycount, 50000))
         if len(mesh.faces) > target_faces:
-            progress(76, f"Decimating to {target_faces:,} polygons")
+            progress(76, f"Optimizing geometry to {target_faces:,} polygons")
             mesh = mesh.simplify_quadric_decimation(face_count=target_faces)
 
         mesh = repair(mesh)

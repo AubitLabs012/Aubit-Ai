@@ -58,6 +58,14 @@ class LocalTextTo3DTests(unittest.TestCase):
                 self.assertEqual(library.json()["data"]["models"][0]["model_urls"], data["model_urls"])
                 self.assertEqual(client.get("/api/text-to-3d").status_code, 401)
 
+                # Test delete model endpoint
+                del_resp = client.delete(f"/api/text-to-3d/{data['id']}", headers=headers)
+                self.assertEqual(del_resp.status_code, 200)
+                self.assertTrue(del_resp.json()["data"]["deleted"])
+                # Verify library is now empty
+                library_after = client.get("/api/text-to-3d", headers=headers)
+                self.assertEqual(len(library_after.json()["data"]["models"]), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

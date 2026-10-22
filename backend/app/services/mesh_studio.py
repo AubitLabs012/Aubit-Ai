@@ -159,8 +159,9 @@ def project_colors(mesh, references, base=None, ai_complete=True):
 
 def _rasterize_multiview_py(atlas_size, faces, face_normals, uv_pts, verts_3d,
                             v_dirs_arr, v_pts_arr, v_imgs_arr, v_alphas_arr,
+                            v_types_arr, center_x, center_z, half_ext_x, half_ext_z,
                             atlas_accum, weight_accum):
-    """Pure Python fallback for multi-view rasterization if Numba is unavailable."""
+    """Multi-view barycentric rasterization with rigorous hemisphere gating and spatial view classification."""
     n_views = len(v_dirs_arr)
     n_faces = len(faces)
     for fi in range(n_faces):
@@ -168,15 +169,25 @@ def _rasterize_multiview_py(atlas_size, faces, face_normals, uv_pts, verts_3d,
         f = faces[fi]
         cx = (verts_3d[f[0], 0] + verts_3d[f[1], 0] + verts_3d[f[2], 0]) / 3.0
         cz = (verts_3d[f[0], 2] + verts_3d[f[1], 2] + verts_3d[f[2], 2]) / 3.0
+        rel_x = (cx - center_x) / half_ext_x
+        rel_z = (cz - center_z) / half_ext_z
+
         weights = np.zeros(n_views, dtype=np.float32)
         total_w = 0.0
         best_vi = -1
         max_score = -1e9
         for vi in range(n_views):
-            if vi == 0 and cz < -0.05: continue
-            if vi == 2 and cz >  0.05: continue
-            if vi == 1 and cx >  0.05: continue
-            if vi == 3 and cx < -0.05: continue
+            vt = v_types_arr[vi]
+            # Spatial hemisphere gating based on actual camera view type:
+            # 0: FRONT (+Z) - cannot directly see deep rear hemisphere
+            # 1: BACK  (-Z) - cannot directly see deep front hemisphere
+            # 2: LEFT  (-X) - cannot directly see deep right hemisphere
+            # 3: RIGHT (+X) - cannot directly see deep left hemisphere
+            if vt == 0 and rel_z < -0.15: continue
+            if vt == 1 and rel_z >  0.15: continue
+            if vt == 2 and rel_x >  0.15: continue
+            if vt == 3 and rel_x < -0.15: continue
+
             dot = fn[0]*v_dirs_arr[vi, 0] + fn[1]*v_dirs_arr[vi, 1] + fn[2]*v_dirs_arr[vi, 2]
             if dot > max_score:
                 max_score = dot
@@ -253,6 +264,7 @@ def project_and_bake_photographic_texture(mesh, references, size=2048, pbr=True,
     trimesh.repair.fix_normals(unwrapped)
 
     view_order = ["front", "left", "back", "right"]
+    view_type_map = {"front": 0, "back": 1, "left": 2, "right": 3}
     view_dirs = {
         "front": np.array([0.0, 0.0, 1.0], dtype=np.float32),
         "left":  np.array([-1.0, 0.0, 0.0], dtype=np.float32),
@@ -260,9 +272,9 @@ def project_and_bake_photographic_texture(mesh, references, size=2048, pbr=True,
         "right": np.array([1.0, 0.0, 0.0], dtype=np.float32),
     }
 
-    # If only front view exists and ai_complete is requested, synthesize symmetric views
+    # If only front view exists, synthesize symmetric back view for 360-degree coverage
     active_refs = dict(references)
-    if "front" in active_refs and "back" not in active_refs and ai_complete:
+    if "front" in active_refs and "back" not in active_refs and (ai_complete or len(active_refs) == 1):
         front_img = active_refs["front"]
         active_refs["back"] = front_img.transpose(Image.FLIP_LEFT_RIGHT)
 
@@ -277,7 +289,6 @@ def project_and_bake_photographic_texture(mesh, references, size=2048, pbr=True,
     for v in v_names:
         arr = np.array(active_refs[v].convert("RGBA"))
         alpha = arr[:, :, 3] > 20
-        ref_alphas[v] = arr[:, :, 3]
         if alpha.any():
             rows = np.any(alpha, axis=1)
             cols = np.any(alpha, axis=0)
@@ -287,9 +298,13 @@ def project_and_bake_photographic_texture(mesh, references, size=2048, pbr=True,
             dist, nearest = distance_transform_edt(~alpha, return_indices=True)
             rgb = arr[:, :, :3].copy()
             rgb[~alpha] = rgb[nearest[0][~alpha], nearest[1][~alpha]]
+            # Dilate valid alpha mask up to 25px so silhouette vertices safely sample edge colors
+            pad_mask = alpha | (dist <= 25)
+            ref_alphas[v] = (pad_mask.astype(np.uint8) * 255)
             ref_solid[v] = rgb
         else:
             ref_bboxes[v] = (0, 0, arr.shape[1] - 1, arr.shape[0] - 1)
+            ref_alphas[v] = arr[:, :, 3]
             ref_solid[v] = arr[:, :, :3]
 
     bounds = unwrapped.bounds
@@ -326,9 +341,15 @@ def project_and_bake_photographic_texture(mesh, references, size=2048, pbr=True,
     weight_accum = np.zeros((size, size), dtype=np.float32)
 
     v_dirs_arr = np.array([view_dirs.get(v, np.array([0.0, 0.0, 1.0], dtype=np.float32)) for v in v_names], dtype=np.float32)
+    v_types_arr = np.array([view_type_map.get(v, 0) for v in v_names], dtype=np.int32)
     v_pts_arr = np.stack([view_img_pts[v] for v in v_names], axis=0).astype(np.float32)
     v_imgs_arr = np.stack([ref_solid[v] for v in v_names], axis=0).astype(np.uint8)
     v_alphas_arr = np.stack([ref_alphas[v] for v in v_names], axis=0).astype(np.uint8)
+
+    center_x = float((bmin[0] + bmax[0]) * 0.5)
+    center_z = float((bmin[2] + bmax[2]) * 0.5)
+    half_ext_x = float(max((bmax[0] - bmin[0]) * 0.5, 1e-4))
+    half_ext_z = float(max((bmax[2] - bmin[2]) * 0.5, 1e-4))
 
     verts_3d = unwrapped.vertices.astype(np.float32)
     faces = unwrapped.faces.astype(np.int32)
@@ -336,6 +357,7 @@ def project_and_bake_photographic_texture(mesh, references, size=2048, pbr=True,
 
     _rasterize_multiview(size, faces, face_normals, uv_px, verts_3d,
                          v_dirs_arr, v_pts_arr, v_imgs_arr, v_alphas_arr,
+                         v_types_arr, center_x, center_z, half_ext_x, half_ext_z,
                          atlas_accum, weight_accum)
 
     covered = weight_accum > 0

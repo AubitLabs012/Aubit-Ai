@@ -55,6 +55,15 @@ def get_model(task_id: str, request: Request, user: dict = Depends(require_curre
     return ApiResponse(message="3D model details", data=with_file_urls(result, request))
 
 
+@router.delete("/{task_id}", response_model=ApiResponse)
+def delete_model(task_id: str, user: dict = Depends(require_current_user)) -> ApiResponse:
+    tid = valid_task_id(task_id)
+    success = TextTo3DService().delete_model(tid)
+    if not success:
+        raise HTTPException(status_code=404, detail="3D model not found or already deleted.")
+    return ApiResponse(message="3D model deleted successfully", data={"id": tid, "deleted": True})
+
+
 @router.get("/{task_id}/model.glb", name="download_glb")
 def download_glb(task_id: str) -> FileResponse:
     path = TextTo3DService().get_file(valid_task_id(task_id), "glb")
