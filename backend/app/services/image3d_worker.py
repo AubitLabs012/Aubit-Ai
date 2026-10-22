@@ -193,9 +193,9 @@ def main():
             colors = project_colors(mesh, refs, ai_complete=ai_complete)
             qual = str(task.get("texture_quality", "4K")).upper()
             atlas_size = {"2K": 2048, "4K": 4096, "8K": 4096}.get(qual, 2048)
-            progress(88, f"Baking {qual} ({atlas_size}x{atlas_size}) UV texture atlas")
+            progress(88, f"Baking {qual} ({atlas_size}x{atlas_size}) studio UV texture atlas with PBR maps")
             pbr_enabled = task.get("pbr", True)
-            mesh, texture = bake_texture(mesh, colors, size=atlas_size, pbr=pbr_enabled)
+            mesh, texture = bake_texture(mesh, colors, size=atlas_size, pbr=pbr_enabled, references=refs, ai_complete=ai_complete)
 
         topology_mode = task.get("topology", "triangle")
         metadata = {

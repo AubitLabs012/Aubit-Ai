@@ -157,13 +157,279 @@ def project_colors(mesh, references, base=None, ai_complete=True):
 
     return colors
 
-def bake_texture(mesh, colors, size, pbr=True):
-    """Rasterize interpolated colors into a non-overlapping xatlas UV atlas using fast OpenCV rasterization."""
+def _rasterize_multiview_py(atlas_size, faces, face_normals, uv_pts, verts_3d,
+                            v_dirs_arr, v_pts_arr, v_imgs_arr, v_alphas_arr,
+                            atlas_accum, weight_accum):
+    """Pure Python fallback for multi-view rasterization if Numba is unavailable."""
+    n_views = len(v_dirs_arr)
+    n_faces = len(faces)
+    for fi in range(n_faces):
+        fn = face_normals[fi]
+        f = faces[fi]
+        cx = (verts_3d[f[0], 0] + verts_3d[f[1], 0] + verts_3d[f[2], 0]) / 3.0
+        cz = (verts_3d[f[0], 2] + verts_3d[f[1], 2] + verts_3d[f[2], 2]) / 3.0
+        weights = np.zeros(n_views, dtype=np.float32)
+        total_w = 0.0
+        best_vi = -1
+        max_score = -1e9
+        for vi in range(n_views):
+            if vi == 0 and cz < -0.05: continue
+            if vi == 2 and cz >  0.05: continue
+            if vi == 1 and cx >  0.05: continue
+            if vi == 3 and cx < -0.05: continue
+            dot = fn[0]*v_dirs_arr[vi, 0] + fn[1]*v_dirs_arr[vi, 1] + fn[2]*v_dirs_arr[vi, 2]
+            if dot > max_score:
+                max_score = dot
+                best_vi = vi
+            if dot > 0.05:
+                w = dot ** 4
+                weights[vi] = w
+                total_w += w
+        if total_w < 1e-5:
+            if best_vi >= 0:
+                weights[best_vi] = 1.0
+                total_w = 1.0
+            else:
+                continue
+        weights /= total_w
+        idx0, idx1, idx2 = f[0], f[1], f[2]
+        u0, v0 = uv_pts[idx0, 0], uv_pts[idx0, 1]
+        u1, v1 = uv_pts[idx1, 0], uv_pts[idx1, 1]
+        u2, v2 = uv_pts[idx2, 0], uv_pts[idx2, 1]
+        denom = (v1 - v2) * (u0 - u2) + (u2 - u1) * (v0 - v2)
+        if abs(denom) < 1e-6:
+            continue
+        if denom < 0.0:
+            idx0, idx1 = idx1, idx0
+            u0, u1 = u1, u0
+            v0, v1 = v1, v0
+            denom = -denom
+        inv_denom = 1.0 / denom
+        min_u = max(0, int(np.floor(min(u0, u1, u2))))
+        max_u = min(atlas_size - 1, int(np.ceil(max(u0, u1, u2))))
+        min_v = max(0, int(np.floor(min(v0, v1, v2))))
+        max_v = min(atlas_size - 1, int(np.ceil(max(v0, v1, v2))))
+        if min_u > max_u or min_v > max_v:
+            continue
+        for py in range(min_v, max_v + 1):
+            for px in range(min_u, max_u + 1):
+                w0 = ((v1 - v2) * (px - u2) + (u2 - u1) * (py - v2)) * inv_denom
+                w1 = ((v2 - v0) * (px - u2) + (u0 - u2) * (py - v2)) * inv_denom
+                w2 = 1.0 - w0 - w1
+                if w0 >= -0.02 and w1 >= -0.02 and w2 >= -0.02:
+                    r_c, g_c, b_c, w_c = 0.0, 0.0, 0.0, 0.0
+                    for vi in range(n_views):
+                        vw = weights[vi]
+                        if vw < 1e-4: continue
+                        rx = int(np.round(w0 * v_pts_arr[vi, idx0, 0] + w1 * v_pts_arr[vi, idx1, 0] + w2 * v_pts_arr[vi, idx2, 0]))
+                        ry = int(np.round(w0 * v_pts_arr[vi, idx0, 1] + w1 * v_pts_arr[vi, idx1, 1] + w2 * v_pts_arr[vi, idx2, 1]))
+                        h_ref, w_ref = v_imgs_arr[vi].shape[:2]
+                        rx = max(0, min(w_ref - 1, rx))
+                        ry = max(0, min(h_ref - 1, ry))
+                        if v_alphas_arr[vi, ry, rx] < 20: continue
+                        r_c += vw * v_imgs_arr[vi, ry, rx, 0]
+                        g_c += vw * v_imgs_arr[vi, ry, rx, 1]
+                        b_c += vw * v_imgs_arr[vi, ry, rx, 2]
+                        w_c += vw
+                    if w_c > 1e-5:
+                        atlas_accum[py, px, 0] += r_c / w_c
+                        atlas_accum[py, px, 1] += g_c / w_c
+                        atlas_accum[py, px, 2] += b_c / w_c
+                        weight_accum[py, px] += 1.0
+
+try:
+    import numba as nb
+    _rasterize_multiview = nb.njit(parallel=True, fastmath=True)(_rasterize_multiview_py)
+except ImportError:
+    _rasterize_multiview = _rasterize_multiview_py
+
+def project_and_bake_photographic_texture(mesh, references, size=2048, pbr=True, ai_complete=False):
+    """Direct camera-to-UV barycentric photographic projection with PBR Normal and Roughness map synthesis."""
+    import cv2
+    from PIL import Image
+    from scipy.ndimage import distance_transform_edt
+
+    unwrapped, mapping = unwrap(mesh)
+    trimesh.repair.fix_normals(unwrapped)
+
+    view_order = ["front", "left", "back", "right"]
+    view_dirs = {
+        "front": np.array([0.0, 0.0, 1.0], dtype=np.float32),
+        "left":  np.array([-1.0, 0.0, 0.0], dtype=np.float32),
+        "back":  np.array([0.0, 0.0, -1.0], dtype=np.float32),
+        "right": np.array([1.0, 0.0, 0.0], dtype=np.float32),
+    }
+
+    # If only front view exists and ai_complete is requested, synthesize symmetric views
+    active_refs = dict(references)
+    if "front" in active_refs and "back" not in active_refs and ai_complete:
+        front_img = active_refs["front"]
+        active_refs["back"] = front_img.transpose(Image.FLIP_LEFT_RIGHT)
+
+    v_names = [v for v in view_order if v in active_refs]
+    if not v_names:
+        v_names = list(active_refs.keys())
+
+    ref_solid = {}
+    ref_alphas = {}
+    ref_bboxes = {}
+
+    for v in v_names:
+        arr = np.array(active_refs[v].convert("RGBA"))
+        alpha = arr[:, :, 3] > 20
+        ref_alphas[v] = arr[:, :, 3]
+        if alpha.any():
+            rows = np.any(alpha, axis=1)
+            cols = np.any(alpha, axis=0)
+            ymin, ymax = np.where(rows)[0][[0, -1]]
+            xmin, xmax = np.where(cols)[0][[0, -1]]
+            ref_bboxes[v] = (int(xmin), int(ymin), int(xmax), int(ymax))
+            dist, nearest = distance_transform_edt(~alpha, return_indices=True)
+            rgb = arr[:, :, :3].copy()
+            rgb[~alpha] = rgb[nearest[0][~alpha], nearest[1][~alpha]]
+            ref_solid[v] = rgb
+        else:
+            ref_bboxes[v] = (0, 0, arr.shape[1] - 1, arr.shape[0] - 1)
+            ref_solid[v] = arr[:, :, :3]
+
+    bounds = unwrapped.bounds
+    bmin, bmax = bounds[0], bounds[1]
+    diag = bmax - bmin
+
+    uvs = unwrapped.visual.uv
+    uv_px = np.column_stack([uvs[:, 0] * (size - 1), (1.0 - uvs[:, 1]) * (size - 1)]).astype(np.float32)
+
+    view_img_pts = {}
+    vx = unwrapped.vertices[:, 0]
+    vy = unwrapped.vertices[:, 1]
+    vz = unwrapped.vertices[:, 2]
+
+    for v in v_names:
+        xmin, ymin, xmax, ymax = ref_bboxes[v]
+        if v == "front":
+            h_coord = (vx - bmin[0]) / max(diag[0], 1e-4)
+        elif v == "back":
+            h_coord = (bmax[0] - vx) / max(diag[0], 1e-4)
+        elif v == "left":
+            h_coord = (bmax[2] - vz) / max(diag[2], 1e-4)
+        elif v == "right":
+            h_coord = (vz - bmin[2]) / max(diag[2], 1e-4)
+        else:
+            h_coord = (vx - bmin[0]) / max(diag[0], 1e-4)
+
+        v_coord = (vy - bmin[1]) / max(diag[1], 1e-4)
+        px = xmin + h_coord * (xmax - xmin)
+        py = ymax - v_coord * (ymax - ymin)
+        view_img_pts[v] = np.column_stack([px, py]).astype(np.float32)
+
+    atlas_accum = np.zeros((size, size, 3), dtype=np.float32)
+    weight_accum = np.zeros((size, size), dtype=np.float32)
+
+    v_dirs_arr = np.array([view_dirs.get(v, np.array([0.0, 0.0, 1.0], dtype=np.float32)) for v in v_names], dtype=np.float32)
+    v_pts_arr = np.stack([view_img_pts[v] for v in v_names], axis=0).astype(np.float32)
+    v_imgs_arr = np.stack([ref_solid[v] for v in v_names], axis=0).astype(np.uint8)
+    v_alphas_arr = np.stack([ref_alphas[v] for v in v_names], axis=0).astype(np.uint8)
+
+    verts_3d = unwrapped.vertices.astype(np.float32)
+    faces = unwrapped.faces.astype(np.int32)
+    face_normals = unwrapped.face_normals.astype(np.float32)
+
+    _rasterize_multiview(size, faces, face_normals, uv_px, verts_3d,
+                         v_dirs_arr, v_pts_arr, v_imgs_arr, v_alphas_arr,
+                         atlas_accum, weight_accum)
+
+    covered = weight_accum > 0
+    final_atlas = np.zeros((size, size, 3), dtype=np.uint8)
+    for c in range(3):
+        final_atlas[:, :, c][covered] = np.clip(atlas_accum[:, :, c][covered] / weight_accum[covered], 0, 255).astype(np.uint8)
+
+    # Inpaint any remaining crevices using nearest valid surface pixels
+    if covered.any():
+        dist, nearest = distance_transform_edt(~covered, return_indices=True)
+        final_atlas[~covered] = final_atlas[nearest[0][~covered], nearest[1][~covered]]
+    else:
+        final_atlas[:] = 180
+
+    texture = Image.fromarray(final_atlas)
+
+    if pbr:
+        # 1. Synthesize Tangent-Space Normal Map for depth & embossing
+        gray = cv2.cvtColor(final_atlas, cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
+        sobel_x = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
+        sobel_y = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
+        strength = 2.2
+        nx = -sobel_x * strength
+        ny = -sobel_y * strength
+        nz = np.ones_like(gray)
+        norm = np.sqrt(nx*nx + ny*ny + nz*nz)
+        nx /= norm; ny /= norm; nz /= norm
+        normal_map = np.zeros((size, size, 3), dtype=np.uint8)
+        normal_map[:, :, 0] = np.clip((nx * 0.5 + 0.5) * 255, 0, 255).astype(np.uint8)
+        normal_map[:, :, 1] = np.clip((ny * 0.5 + 0.5) * 255, 0, 255).astype(np.uint8)
+        normal_map[:, :, 2] = np.clip((nz * 0.5 + 0.5) * 255, 0, 255).astype(np.uint8)
+        normal_img = Image.fromarray(normal_map)
+
+        # 2. Synthesize PBR Metallic-Roughness Map (ORM format: Green=Roughness, Blue=Metallic)
+        hsv = cv2.cvtColor(final_atlas, cv2.COLOR_RGB2HSV)
+        val = hsv[:, :, 2] / 255.0
+        sat = hsv[:, :, 1] / 255.0
+
+        roughness = np.full((size, size), 0.72, dtype=np.float32)
+        metallic = np.zeros((size, size), dtype=np.float32)
+
+        # Visor/glass: glossy, smooth
+        visor_mask = (val < 0.16) & (sat < 0.25)
+        roughness[visor_mask] = 0.10
+        metallic[visor_mask] = 0.18
+
+        # Silver/metal: zipper teeth, robotic knuckles, buckles
+        metal_mask = (val > 0.65) & (sat < 0.15) & (~visor_mask)
+        metallic[metal_mask] = 0.82
+        roughness[metal_mask] = 0.26
+
+        # Semi-gloss nylon / leather
+        jacket_mask = (val >= 0.16) & (~metal_mask) & (val < 0.85)
+        roughness[jacket_mask] = 0.54
+
+        orm = np.zeros((size, size, 3), dtype=np.uint8)
+        orm[:, :, 0] = 255  # Ambient Occlusion
+        orm[:, :, 1] = np.clip(roughness * 255, 0, 255).astype(np.uint8)
+        orm[:, :, 2] = np.clip(metallic * 255, 0, 255).astype(np.uint8)
+        orm_img = Image.fromarray(orm)
+
+        unwrapped.visual.material = trimesh.visual.material.PBRMaterial(
+            name="StudioPBRMaterial",
+            baseColorTexture=texture,
+            normalTexture=normal_img,
+            metallicRoughnessTexture=orm_img,
+            metallicFactor=1.0,
+            roughnessFactor=1.0,
+            doubleSided=True
+        )
+    else:
+        unwrapped.visual.material = trimesh.visual.material.PBRMaterial(
+            baseColorTexture=texture,
+            metallicFactor=0.0,
+            roughnessFactor=1.0,
+            doubleSided=True
+        )
+
+    return unwrapped, texture
+
+def bake_texture(mesh, colors=None, size=2048, pbr=True, references=None, ai_complete=False):
+    """Bake texture into UV atlas. Uses direct photographic projection if references are given, else vertex color interpolation."""
+    if references and len(references) > 0:
+        return project_and_bake_photographic_texture(mesh, references, size=size, pbr=pbr, ai_complete=ai_complete)
+
     import cv2
     from PIL import Image
     from scipy.ndimage import distance_transform_edt
     unwrapped, mapping = unwrap(mesh)
-    mapped_colors = colors[mapping]
+    if colors is not None:
+        mapped_colors = colors[mapping]
+    else:
+        mapped_colors = np.full((len(unwrapped.vertices), 3), 0.7)
+
     atlas = np.full((size, size, 3), 230, dtype=np.uint8)
     coverage = np.zeros((size, size), dtype=np.uint8)
     uv = unwrapped.visual.uv * (size - 1)
@@ -182,7 +448,6 @@ def bake_texture(mesh, colors, size, pbr=True):
     if not has_cov.any():
         atlas[:, :] = [180, 180, 180]
     else:
-        # Pad chart borders to prevent dark seams during mipmapping.
         distance, nearest = distance_transform_edt(~has_cov, return_indices=True)
         pad = (~has_cov) & (distance <= 6)
         atlas[pad] = atlas[nearest[0][pad], nearest[1][pad]]
@@ -190,7 +455,7 @@ def bake_texture(mesh, colors, size, pbr=True):
     texture = Image.fromarray(atlas)
     metallic = 0.08 if pbr else 0.0
     roughness = 0.72 if pbr else 1.0
-    unwrapped.visual.material = trimesh.visual.material.PBRMaterial(baseColorTexture=texture, metallicFactor=metallic, roughnessFactor=roughness, doubleSided=False)
+    unwrapped.visual.material = trimesh.visual.material.PBRMaterial(baseColorTexture=texture, metallicFactor=metallic, roughnessFactor=roughness, doubleSided=True)
     unwrapped.visual.vertex_colors = (mapped_colors * 255).astype(np.uint8)
     return unwrapped, texture
 
