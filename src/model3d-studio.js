@@ -1,20 +1,60 @@
-/* Aubit local 3D studio: real engine capabilities and non-destructive editing. */
+/* TRIPO 3D Studio - Exact Studio Interface & Full Functionality */
 (() => {
   const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const glyphs = {cube:'<path d="m12 3 9 5v9l-9 5-9-5V8Zm0 10 9-5M3 8l9 5v9"/>',image:'<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m4 18 6-6 4 4 3-3 4 5"/>',spark:'<path d="m12 2 3 7 7 3-7 3-3 7-3-7-7-3 7-3Z"/>',parts:'<path d="m3 6 5-3 5 3-5 3Zm0 0v6l5 3V9m5-3v6l-5 3m8-2 5 3v6l-5 3-5-3v-6Zm0 6 5-3m-5 3-5-3m5 3v6"/>',uv:'<path d="M3 3h18v18H3Zm6 0v18m6-18v18M3 9h18M3 15h18"/>',layers:'<path d="m12 2 10 5-10 5-10-5Z"/><path d="m2 12 10 5 10-5"/><path d="m2 17 10 5 10-5"/>',brush:'<path d="m8 15 11-12 3 3-12 11M8 15c-5-2-3 5-6 6 7 1 10-1 8-4Z"/>',arrow:'<path d="m9 5 7 7-7 7"/>',close:'<path d="m6 6 12 12M6 18 18 6"/>',down:'<path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/>',rotate:'<path d="M3 10a9 9 0 1 1 2 8M3 3v7h7"/>',check:'<path d="m4 12 5 5L20 6"/>',eye:'<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',trash:'<path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2m-6 5v6m4-6v6"/>'};
-  const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${glyphs[name] || glyphs.cube}</svg>`;
-  const stages = [ ['input','image','Input','Single or Multi-View Input'], ['geometry','cube','Geometry','High-Quality Geometry'], ['parts','parts','Parts','Part Refinement'], ['uv','uv','UV','Retopology + UV'], ['texture','brush','Texture','Anime Texture Studio'] ];
-  const views = ['front','left','back','right'];
-  const engineMeta = {
-    'hunyuan-mini': { glyph: 'cube', subtitle: 'stability baseline', desc: 'Establish whether a lightweight engine consistently generates complete meshes on your machine. It isn\'t necessarily your final quality engine.' },
-    'hunyuan-mv': { glyph: 'parts', subtitle: 'multi-view conditioning', desc: 'Native multi-view reconstruction from 2 to 4 labeled camera angles (Front, Left, Back, Right).' },
-    'hunyuan-2.1': { glyph: 'spark', subtitle: 'higher-detail mode', desc: 'Keep this as a candidate once we\'ve verified that shape generation reliably works with offloading.' },
-    'stable-fast-3d': { glyph: 'layers', subtitle: 'different reconstruction approach', desc: 'Generates UV-mapped textured assets, but its approximately 6 GB VRAM requirement is borderline and Windows support is experimental.' },
+
+  const icons = {
+    tripoLogo: '<svg class="tripo-logo-svg" viewBox="0 0 100 100" fill="none"><polygon points="50,10 90,85 10,85" fill="#facc15"/><polygon points="50,28 76,77 24,77" fill="#141414"/><circle cx="50" cy="56" r="10" fill="#facc15"/></svg>',
+    cube: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5v9l-9 5-9-5V8Zm0 10 9-5M3 8l9 5v9"/></svg>',
+    image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m4 18 6-6 4 4 3-3 4 5"/></svg>',
+    spark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 3 7 7 3-7 3-3 7-3-7-7-3 7-3Z"/></svg>',
+    segment: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>',
+    retopo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polygon points="2 17 12 22 22 17"/><polygon points="2 12 12 17 22 12"/></svg>',
+    uv: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>',
+    texture: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 15 11-12 3 3-12 11M8 15c-5-2-3 5-6 6 7 1 10-1 8-4Z"/></svg>',
+    edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+    upscale: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>',
+    app: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
+    sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
+    camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+    grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
+    reset: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>',
+    help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    undo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>',
+    redo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>',
+    printer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>',
+    share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>',
+    down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13m-5-5 5 5 5-5M4 17v4h16v-4"/></svg>',
+    upload: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17V3m-5 5 5-5 5 5M4 17v4h16v-4"/></svg>',
+    star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+    filter: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
+    info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+    close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
+    gift: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>',
+    folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+    sliders: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>',
+    pencil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>',
+    chevronDown: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
   };
-  let root, bridge, state, stage='input', inputMode='single', engine='hunyuan-mini', assets=[], lastAsset='', currentUrl='', error='', previousFocus, refreshTimer, modelPendingDelete = null;
-  const files = new Map();
-  const $ = s => root.querySelector(s);
-  const button = (action, label, glyph='', extra='') => `<button type="button" data-action="${action}" ${extra}>${glyph?icon(glyph):''}${label}</button>`;
+
+  const railTabs = [
+    { id: 'image', icon: 'image', label: 'Image', badge: 'GPT-Image 2.5' },
+    { id: 'model', icon: 'cube', label: 'Model' },
+    { id: 'segment', icon: 'segment', label: 'Segment' },
+    { id: 'retopo', icon: 'retopo', label: 'Retopo' },
+    { id: 'uv', icon: 'uv', label: 'Smart UV' },
+    { id: 'texture', icon: 'texture', label: 'Texture', active: true },
+    { id: 'edit', icon: 'edit', label: 'Edit' },
+    { id: 'upscale', icon: 'upscale', label: 'Upscale' },
+    { id: 'app', icon: 'app', label: 'App' }
+  ];
+
+  let root, bridge, state, activeRail = 'texture', activeTab = 'assets';
+  let assets = [], currentUrl = '', error = '', previousFocus, refreshTimer;
+  let modelPendingDelete = null;
+  let currentRefImageFile = null, currentRefImageUrl = '';
+  let activeMatMode = 'pbr';
 
   const defaultSettings = {
     ultra: true,
@@ -28,6 +68,9 @@
   };
   let settings = { ...defaultSettings };
 
+  const $ = s => root.querySelector(s);
+  const $$ = s => root.querySelectorAll(s);
+
   function loadSettings() {
     try {
       const saved = localStorage.getItem('aubit_3d_settings');
@@ -40,228 +83,340 @@
     try {
       localStorage.setItem('aubit_3d_settings', JSON.stringify(settings));
     } catch (_) {}
-    updateSettingsSummary();
   }
 
   function applySettingsToUI() {
     if (!root) return;
-    const ultra = $('#a3d-set-ultra'); if (ultra) ultra.checked = !!settings.ultra;
-    const aic = $('#a3d-set-aicomplete'); if (aic) aic.checked = !!settings.aiComplete;
-    const tex = $('#a3d-set-texture'); if (tex) tex.checked = !!settings.texture;
-    const delight = $('#a3d-set-delight'); if (delight) delight.checked = !!settings.removeLighting;
-    const pbr = $('#a3d-set-pbr'); if (pbr) pbr.checked = !!settings.pbr;
-
-    const qualGroup = $('#a3d-quality-group');
-    if (qualGroup) {
-      qualGroup.querySelectorAll('button').forEach(btn => {
+    const delight = $('#tripo-delight');
+    if (delight) delight.checked = !!settings.removeLighting;
+    const resGroup = $('#tripo-res-group');
+    if (resGroup) {
+      resGroup.querySelectorAll('button').forEach(btn => {
         btn.classList.toggle('is-active', btn.dataset.val === settings.textureQuality);
       });
     }
-
-    const topoGroup = $('#a3d-topology-group');
-    if (topoGroup) {
-      topoGroup.querySelectorAll('button').forEach(btn => {
-        btn.classList.toggle('is-active', btn.dataset.val === settings.topology);
-      });
-    }
-
-    const polySlider = $('#a3d-set-poly-slider'); if (polySlider) polySlider.value = settings.polycount;
-    const polyInput = $('#a3d-set-poly-input'); if (polyInput) polyInput.value = settings.polycount;
-
-    updateSettingsSummary();
-  }
-
-  function updateSettingsSummary() {
-    const sumEl = $('#a3d-settings-summary');
-    if (!sumEl) return;
-    const parts = [];
-    if (settings.ultra) parts.push('Ultra');
-    if (settings.texture) {
-      parts.push(`${settings.textureQuality}${settings.pbr ? ' PBR' : ''}`);
-    } else {
-      parts.push('No Texture');
-    }
-    parts.push(settings.topology === 'quad' ? 'Quad' : 'Triangle');
-    sumEl.textContent = parts.join(' · ');
   }
 
   function mount() {
-    root = document.createElement('section'); root.className='a3d'; root.hidden=true;
-    root.setAttribute('role','dialog'); root.setAttribute('aria-modal','true'); root.setAttribute('aria-label','Aubit 3D studio');
+    root = document.createElement('section');
+    root.className = 'a3d';
+    root.hidden = true;
+    root.setAttribute('role', 'dialog');
+    root.setAttribute('aria-modal', 'true');
+    root.setAttribute('aria-label', 'Tripo 3D Studio');
+
     root.innerHTML = `
-      <nav class="a3d-rail" aria-label="Model workflow">
-        ${button('home','<span class="a3d-logo-mark">a</span>','','class="a3d-brand" title="Back to Aubit"')}
-        <div class="a3d-nav">${stages.map(([id,glyph,label])=>button(`stage-${id}`,`<span>${label}</span>`,glyph,`data-stage="${id}"`)).join('')}</div>
-        ${button('help','<span>Guide</span>','spark')}${button('home','<span>Exit</span>','close')}
-      </nav>
-      <aside class="a3d-controls">
-        <header class="a3d-heading"><span class="a3d-eyebrow">AUBIT · LOCAL CREATION</span><h1 id="a3d-title">Generate Model</h1></header>
-        <div class="a3d-scroll">
-          <section data-panel="input">
-            <div class="a3d-segment">${button('mode-single','Single view','','aria-pressed="true"')}${button('mode-multi','Multi-view','','aria-pressed="false"')}${button('mode-text','Text','','aria-pressed="false"')}</div>
-            <div id="a3d-image-input">
-              <div class="a3d-section-heading"><h2>Reference images</h2><span id="a3d-view-count">0 / 1</span></div>
-              <p class="a3d-muted">Use the same object, pose and lighting. Label each camera angle.</p>
-              <div class="a3d-views">${views.map((view,i)=>`<div class="a3d-view" data-view="${view}" ${i?'hidden':''}>
-                <label class="a3d-drop"><input type="file" data-upload="${view}" accept="image/png,image/jpeg,image/webp"><img alt="${view} reference" hidden><span class="a3d-upload-icon">${icon('image')}</span><strong>${view[0].toUpperCase()+view.slice(1)}</strong><small>Click or drop image</small></label>
-                <div class="a3d-view-actions">${button(`rotate-${view}`,icon('rotate'),'','title="Rotate 90 degrees"')}${button(`remove-${view}`,icon('close'),'','title="Remove image"')}</div></div>`).join('')}</div>
-              <label class="a3d-batch">${icon('image')} Upload several angles<input id="a3d-batch-input" type="file" multiple accept="image/png,image/jpeg,image/webp"></label>
-              <p class="a3d-tiny">PNG, JPG, WEBP · 10 MB per view<br>Multiple files fill Front → Left → Back → Right.</p>
-              <div class="a3d-card"><h2>Clean & align</h2><label class="a3d-toggle"><span>Remove background</span><input id="a3d-remove-bg" type="checkbox" checked></label><label class="a3d-toggle"><span>Center object & match framing</span><input id="a3d-align" type="checkbox" checked></label><p class="a3d-tiny">Keeps each real angle. No mirrored or invented views.</p></div>
-            </div>
-            <div id="a3d-text-input" hidden><label for="a3d-prompt">Describe a model</label><textarea id="a3d-prompt" maxlength="800" rows="6" placeholder="A blue robot with a round head…"></textarea><p class="a3d-muted">Aubit's procedural text builder creates supported object shapes. Image engines reconstruct from your reference photos.</p></div>
-            <div class="a3d-field" id="a3d-engine-field">
-              <div class="a3d-section-heading"><span>Reconstruction engine</span><span class="a3d-muted" id="a3d-engine-view-hint">1 angle</span></div>
-              <div id="a3d-engine-cards" class="a3d-engine-cards" role="radiogroup" aria-label="Reconstruction engine"></div>
-              <select id="a3d-engine" hidden></select>
-            </div>
-            <div id="a3d-engine-status" class="a3d-engine-status"></div>
-            ${button('reconnect','Refresh engine status','rotate','class="a3d-subtle"')}
-            <label class="a3d-field">Geometry detail<select id="a3d-detail"><option value="standard">Balanced · 256 grid / 22 steps (~22s)</option><option value="high">High · 256 grid / 24 steps (~25s)</option><option value="low">Preview · 192 grid / 15 steps (~15s)</option></select></label>
-            <label class="a3d-field">Seed<input id="a3d-seed" type="number" min="0" max="2147483647" value="12345"></label>
-            <button type="button" class="a3d-settings-pill-btn" data-action="open-settings">
-              <span class="a3d-settings-pill-icon">${icon('spark')}</span>
-              <div class="a3d-settings-pill-text">
-                <strong>Geometry & Texture</strong>
-                <small id="a3d-settings-summary">Ultra · 4K PBR · Triangle</small>
-              </div>
-              <span class="a3d-settings-pill-gear">⚙️</span>
+      <!-- 1. TOP BAR -->
+      <header class="tripo-topbar">
+        <div class="tripo-topbar-left">
+          <button type="button" class="tripo-logo-btn" data-action="home" title="TRIPO 3D Workspace">
+            ${icons.tripoLogo}
+            <span class="tripo-brand-title">TRIPO</span>
+          </button>
+          <div class="tripo-workspace-badge" data-action="workspace-select">
+            <span>3D Workspace</span>
+            ${icons.chevronDown}
+          </div>
+          <nav class="tripo-nav-links">
+            <a class="tripo-nav-item" data-action="nav-home">Home</a>
+            <a class="tripo-nav-item is-active" data-action="nav-assets">Assets</a>
+            <a class="tripo-nav-item" data-action="nav-hub">Creator Hub</a>
+            <a class="tripo-nav-item" data-action="nav-resources">Resources ▾</a>
+          </nav>
+        </div>
+        <div class="tripo-topbar-right">
+          <button type="button" class="tripo-btn-bridge" data-action="bridge">
+            ${icons.cube}
+            <span>DCC Bridge</span>
+          </button>
+          <div class="tripo-credits-pill">
+            <span class="tripo-credits-coin">🪙</span>
+            <span>25</span>
+          </div>
+          <button type="button" class="tripo-btn-upgrade" data-action="upgrade">Upgrade</button>
+          <div class="tripo-top-icons">
+            <button type="button" class="tripo-top-icon-btn" data-action="gift" title="Rewards">${icons.gift}</button>
+            <button type="button" class="tripo-top-icon-btn" data-action="notifications" title="Notifications">
+              ${icons.bell}
+              <span class="tripo-badge-count">28</span>
             </button>
-            ${button('generate','Generate Model','spark','class="a3d-primary a3d-generate"')}
-          </section>
-          <section data-panel="geometry" hidden><div class="a3d-step-label">02 / INSPECT</div><h2>Keep the good geometry.</h2><p class="a3d-muted">Rotate every side and inspect thin surfaces, missing pieces and loose fragments before accepting.</p><div id="a3d-quality" class="a3d-card"></div>${button('inspect','Run geometry inspection','cube','class="a3d-wide"')}<div class="a3d-review">${button('accept','Accept mesh','check')}${button('reject','Reject mesh','close')}</div><p class="a3d-tiny">Rejection marks this asset in your library. It keeps the file for comparison.</p></section>
-          <section data-panel="parts" hidden><div class="a3d-step-label">03 / REFINE</div><h2>Separate. Inspect. Repair.</h2><p class="a3d-muted">Separate connected components into named objects. Repair duplicate faces, normals and small holes without smoothing away edges.</p><label class="a3d-field">Connected part<select id="a3d-part"><option value="">All parts</option></select></label><label class="a3d-toggle"><span>Keep only largest component</span><input id="a3d-largest" type="checkbox"></label>${button('parts','Separate & repair parts','parts','class="a3d-primary a3d-wide"')}${button('repair','Repair selected geometry','check','class="a3d-wide"')}<p class="a3d-tiny">Parts are connected components, not semantic body-part detection. Every edit creates a new asset.</p></section>
-          <section data-panel="uv" hidden><div class="a3d-step-label">04 / PREPARE</div><h2>Ready for texturing.</h2><p class="a3d-muted">Reduce triangle count with quadric simplification, then pack an xatlas UV layout.</p><label class="a3d-field">Target triangle count<input id="a3d-target" type="number" min="100" max="200000" value="20000" step="100"></label>${button('optimize','Optimize geometry + unwrap UV','uv','class="a3d-primary a3d-wide"')}<p class="a3d-tiny">Produces optimized triangles. The original detailed mesh stays in Assets. Existing textures should be reapplied after remeshing.</p></section>
-          <section data-panel="texture" hidden><div class="a3d-step-label">05 / FINISH</div><h2>Anime Texture Studio</h2><p class="a3d-muted">Bake a palette or approximate reference colors into a UV texture, with stepped cel shading.</p><label class="a3d-field">Base color<input id="a3d-color" type="color" value="#75aaff"></label><label class="a3d-field">Cel shading bands<select id="a3d-bands"><option>2</option><option>3</option><option selected>4</option><option>6</option><option>8</option></select></label><label class="a3d-field">Texture size<select id="a3d-texture-size"><option>512</option><option selected>1024</option><option>2048</option></select></label><label class="a3d-toggle"><span>Project saved reference colors</span><input id="a3d-reference-colors" type="checkbox" checked></label>${button('texture','Bake anime texture','brush','class="a3d-primary a3d-wide"')}<p class="a3d-tiny">Cel lighting is baked into the exported texture. Hidden areas use the base color. Optimize complex meshes first for faster UV baking.</p></section>
+            <div class="tripo-avatar-wrap" data-action="profile" title="User Profile">
+              <span style="font-size:14px;font-weight:700;color:#facc15">A</span>
+              <span class="tripo-avatar-level">Lv.0</span>
+            </div>
+            <button type="button" class="tripo-top-icon-btn" data-action="home" title="Close Studio" style="margin-left:4px">
+              ${icons.close}
+            </button>
+          </div>
         </div>
-        <footer class="a3d-local"><i></i> Generated on your machine</footer>
+      </header>
+
+      <!-- 2. LEFT RAIL -->
+      <nav class="tripo-rail" aria-label="Studio Tools">
+        ${railTabs.map(t => `
+          <button type="button" class="tripo-rail-item ${t.active ? 'is-active' : ''}" data-rail="${t.id}" title="${t.label}">
+            ${t.badge ? `<span class="tripo-rail-badge">${t.badge}</span>` : ''}
+            ${icons[t.icon] || icons.cube}
+            <span>${t.label}</span>
+          </button>
+        `).join('')}
+      </nav>
+
+      <!-- 3. LEFT TOOL PANEL -->
+      <aside class="tripo-tool-panel">
+        <div class="tripo-panel-header">
+          ${icons.texture}
+          <span id="tripo-panel-title">3D Model Texture Generator</span>
+        </div>
+
+        <!-- Glowing Reference Card -->
+        <div class="tripo-ref-card">
+          <div class="tripo-ref-toolbar">
+            <button type="button" class="tripo-ref-btn" data-action="upload-ref-btn" title="Upload Reference Image">${icons.image}</button>
+            <button type="button" class="tripo-ref-btn" data-action="ref-wire" title="Wireframe mode">${icons.cube}</button>
+            <button type="button" class="tripo-ref-btn" data-action="ref-draw" title="Draw brush">${icons.pencil}</button>
+            <button type="button" class="tripo-ref-btn del" data-action="clear-ref" title="Clear image">${icons.trash}</button>
+          </div>
+
+          <div class="tripo-ref-img-frame" id="tripo-ref-dropzone" title="Click or drop reference image">
+            <img class="tripo-ref-img" id="tripo-ref-img" alt="Reference Image" style="display:none;" />
+            <div class="tripo-ref-placeholder" id="tripo-ref-placeholder">
+              ${icons.image}
+              <span>Click or Drop Image</span>
+              <small style="color:#71717a;font-size:9.5px">PNG, JPG, WEBP up to 10MB</small>
+            </div>
+            <input type="file" id="tripo-ref-file-input" accept="image/png,image/jpeg,image/webp" style="display:none;" />
+          </div>
+        </div>
+
+        <!-- Style Selector -->
+        <div class="tripo-field-row">
+          <div class="tripo-style-selector" data-action="style-select">
+            <span>Create Your Own Texture Style</span>
+            ${icons.chevronDown}
+          </div>
+        </div>
+
+        <!-- Remove Lighting Toggle -->
+        <div class="tripo-field-row">
+          <div class="tripo-toggle-row">
+            <div class="tripo-label-wrap">
+              <span>Remove Lighting <span class="tripo-badge-new">New</span></span>
+              <span class="tripo-tip" title="Extracts clean albedo diffuse maps by decoupling baked shadows and highlights">?</span>
+            </div>
+            <label class="tripo-switch">
+              <input type="checkbox" id="tripo-delight">
+              <span class="tripo-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Texture Resolution Pills -->
+        <div class="tripo-field-row">
+          <div class="tripo-label-wrap">
+            <span>Texture Resolution</span>
+            <span class="tripo-tip" title="Select atlas texture bake resolution">?</span>
+          </div>
+          <div class="tripo-segment-pills" id="tripo-res-group">
+            <button type="button" data-val="2K">2K</button>
+            <button type="button" data-val="4K" class="is-active">4K</button>
+            <button type="button" data-val="8K">8K</button>
+          </div>
+        </div>
+
+        <!-- Optional Prompt Input for text generation -->
+        <div class="tripo-field-row" id="tripo-prompt-wrap" style="display:none;">
+          <label style="font-size:11px;font-weight:600;color:#a1a1aa;">Prompt description</label>
+          <textarea id="tripo-text-prompt" rows="3" placeholder="Describe 3D model..." style="background:#202020;border:1px solid #2e2e2e;border-radius:8px;color:#fff;padding:8px;font-size:12px;resize:none;"></textarea>
+        </div>
+
+        <!-- Yellow Generate Action Button -->
+        <button type="button" class="tripo-btn-generate" data-action="generate">
+          <span id="tripo-btn-gen-text">Generate Texture</span>
+          <span>🪙 20</span>
+        </button>
       </aside>
-      <main class="a3d-canvas">
-        <header class="a3d-topbar"><span>${icon('cube')} AUBIT <b>3D STUDIO</b></span><span class="a3d-local-pill">LOCAL WORKSPACE</span></header>
-        <div class="a3d-floor"></div>
-        <div id="a3d-welcome" class="a3d-welcome"><div class="a3d-orbit"></div><div class="a3d-hero-cube">${icon('cube')}</div><span class="a3d-eyebrow">YOUR IDEAS, IN EVERY DIMENSION</span><h2>Build your next <em>3D world.</em></h2><p>Real references. Local generation. A finish that's yours.</p><div class="a3d-pipeline">${stages.map(([id,glyph,label],i)=>`${i?'<span class="a3d-flow-arrow">›</span>':''}${button(`stage-${id}`,label,glyph)}`).join('')}</div></div>
-        <model-viewer id="a3d-viewer" hidden camera-controls touch-action="none" shadow-intensity="0.5" exposure="1" environment-image="neutral" interaction-prompt="none" alt="Generated 3D model"></model-viewer>
-        <div class="a3d-view-tools">${button('reset','Reset view','rotate')}${button('spin','Orbit','cube')}${button('light','Lighting','spark')}</div>
-        <div id="a3d-progress" class="a3d-progress" hidden><div><span class="a3d-spinner"></span><strong id="a3d-stage"></strong><span id="a3d-percent"></span></div><progress max="100" value="0"></progress></div>
-        <div id="a3d-message" class="a3d-message" role="status" hidden></div>
-        <footer class="a3d-canvas-footer"><span id="a3d-model-label">No model selected</span><span>Drag to orbit · Scroll to zoom</span></footer>
-      </main>
-      <aside class="a3d-assets"><header><h2>Assets <span id="a3d-asset-count">0</span></h2>${button('library','', 'rotate','title="Refresh assets"')}</header><div class="a3d-assets-summary"><span>Your local collection</span><strong>From reference to ready.</strong><small>Originals and refinements, together.</small></div><div id="a3d-assets-list" class="a3d-assets-list"></div><section class="a3d-export"><h2>Export selected</h2><div>${button('download-glb','GLB','down')}${button('download-stl','STL','down')}</div><p class="a3d-tiny">GLB includes materials and UV textures. STL contains geometry only.</p></section></aside>
-      <dialog id="a3d-guide"><h2>Your local 3D workflow</h2><ol><li>Upload a clear front image, or 2–4 matching angles with Hunyuan3D-2mv.</li><li>Clean and center references, then generate with an installed engine.</li><li>Inspect all sides. Accept or reject the result.</li><li>Separate connected parts and repair small holes.</li><li>Optimize triangles and unwrap UVs before baking an anime texture.</li></ol><p>One photo cannot describe hidden surfaces accurately. Multiple angles help, but do not guarantee a perfect model.</p>${button('close-guide','Got it','','class="a3d-primary"')}</dialog>
-      <dialog id="a3d-settings-dialog" class="a3d-settings-dialog">
-        <div class="a3d-dialog-head">
-          <div>
-            <h2>Geometry & Texture</h2>
-            <p class="a3d-dialog-sub">We'll automatically save your settings for next time</p>
+
+      <!-- 4. CENTER VIEWPORT -->
+      <main class="tripo-canvas">
+        <model-viewer
+          id="a3d-viewer"
+          camera-controls
+          touch-action="none"
+          shadow-intensity="1.5"
+          shadow-softness="0.5"
+          exposure="1.0"
+          environment-image="neutral"
+          interaction-prompt="none"
+          alt="Tripo 3D Studio Preview"
+          camera-orbit="0deg 75deg auto"
+        ></model-viewer>
+
+        <!-- Floating Stats Box -->
+        <div class="tripo-stats-box" id="tripo-stats-box">
+          <div class="tripo-stats-row">
+            <span class="tripo-stats-k">Topology</span>
+            <span class="tripo-stats-v" id="tripo-stat-topo">Triangle</span>
           </div>
-          <button type="button" class="a3d-dialog-close" data-action="close-settings" aria-label="Close settings">×</button>
+          <div class="tripo-stats-row">
+            <span class="tripo-stats-k">Faces</span>
+            <span class="tripo-stats-v" id="tripo-stat-faces">50,000 / 50,000</span>
+          </div>
+          <div class="tripo-stats-row">
+            <span class="tripo-stats-k">Vertices</span>
+            <span class="tripo-stats-v" id="tripo-stat-verts">25,002 / 25,002</span>
+          </div>
         </div>
-        <div class="a3d-dialog-body">
-          <div class="a3d-setting-row">
-            <div class="a3d-setting-label">
-              <span>Ultra Mesh Quality</span>
-              <span class="a3d-tip" title="Increases marching cubes grid resolution to 384+ and diffusion steps to 50 for ultra-sharp geometric details.">?</span>
-            </div>
-            <label class="a3d-switch">
-              <input type="checkbox" id="a3d-set-ultra" checked>
-              <span class="a3d-slider"></span>
-            </label>
+
+        <!-- 3D RGB Orientation Gizmo -->
+        <div class="tripo-gizmo" title="XYZ Orientation">
+          <svg class="tripo-gizmo-svg" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="42" fill="rgba(24, 24, 24, 0.75)" stroke="#383838" stroke-width="1.5"/>
+            <!-- X Axis (Red) -->
+            <line x1="50" y1="50" x2="80" y2="50" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="80" cy="50" r="4.5" fill="#ef4444"/>
+            <text x="88" y="53" fill="#ef4444" font-size="10" font-weight="bold">X</text>
+            <!-- Y Axis (Green) -->
+            <line x1="50" y1="50" x2="50" y2="20" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="50" cy="20" r="4.5" fill="#22c55e"/>
+            <text x="47" y="13" fill="#22c55e" font-size="10" font-weight="bold">Y</text>
+            <!-- Z Axis (Blue) -->
+            <line x1="50" y1="50" x2="30" y2="70" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="30" cy="70" r="4.5" fill="#3b82f6"/>
+            <text x="21" y="78" fill="#3b82f6" font-size="10" font-weight="bold">Z</text>
+          </svg>
+        </div>
+
+        <!-- Floating Viewport Tools on Right Edge -->
+        <div class="tripo-viewport-tools">
+          <button type="button" class="tripo-tool-btn" data-action="light" title="Toggle Studio Lighting">${icons.sun}</button>
+          <button type="button" class="tripo-tool-btn" data-action="snapshot" title="Take High-Res Snapshot">${icons.camera}</button>
+          <button type="button" class="tripo-tool-btn" data-action="wireframe" title="Toggle Wireframe / Grid">${icons.grid}</button>
+          <button type="button" class="tripo-tool-btn" data-action="reset" title="Reset Camera">${icons.reset}</button>
+          <button type="button" class="tripo-tool-btn" data-action="help" title="Tripo Guide">${icons.help}</button>
+        </div>
+
+        <!-- Floating Shading Material Spheres -->
+        <div class="tripo-material-bar">
+          <div class="tripo-mat-sphere is-active" data-mat="pbr" title="PBR Colored" style="background: linear-gradient(135deg, #facc15, #8b5cf6, #06b6d4);"></div>
+          <div class="tripo-mat-sphere" data-mat="clay" title="MatCap Clay" style="background: #998070;"></div>
+          <div class="tripo-mat-sphere" data-mat="normal" title="Normal Tangent Map" style="background: linear-gradient(135deg, #6688ee, #77ffaa, #ff88aa);"></div>
+          <div class="tripo-mat-sphere" data-mat="gold" title="Metallic Gold" style="background: linear-gradient(135deg, #ffe066, #b8860b, #fff8dc);"></div>
+          <div class="tripo-mat-sphere" data-mat="unlit" title="Unlit Flat Color" style="background: #333333;"></div>
+        </div>
+
+        <!-- Floating Bottom Action Bar -->
+        <div class="tripo-bottom-actions">
+          <div class="tripo-bottom-left">
+            <button type="button" class="tripo-action-icon" data-action="undo" title="Undo">${icons.undo}</button>
+            <button type="button" class="tripo-action-icon" data-action="redo" title="Redo">${icons.redo}</button>
           </div>
-
-          <div class="a3d-setting-row">
-            <div class="a3d-setting-label">
-              <span>AI Complete</span>
-              <span class="a3d-tip" title="Synthesizes coherent 360° geometry and textures for occluded and unseen back surfaces.">?</span>
-            </div>
-            <label class="a3d-switch">
-              <input type="checkbox" id="a3d-set-aicomplete">
-              <span class="a3d-slider"></span>
-            </label>
+          <div class="tripo-bottom-right">
+            <button type="button" class="tripo-pill-btn" data-action="download-stl">${icons.printer} 3D Print</button>
+            <button type="button" class="tripo-pill-btn" data-action="share">${icons.share} Share</button>
+            <button type="button" class="tripo-export-btn" data-action="open-export">${icons.down} Export ⬇</button>
           </div>
+        </div>
 
-          <hr class="a3d-dialog-div">
-
-          <div class="a3d-setting-row">
-            <div class="a3d-setting-label">
-              <span>Texture</span>
-            </div>
-            <label class="a3d-switch">
-              <input type="checkbox" id="a3d-set-texture" checked>
-              <span class="a3d-slider"></span>
-            </label>
+        <!-- Progress Overlay -->
+        <div class="tripo-progress-overlay" id="tripo-progress" hidden>
+          <div class="tripo-progress-head">
+            <strong id="tripo-stage-label">Generating 3D Texture...</strong>
+            <span id="tripo-percent-label">45%</span>
           </div>
-
-          <div class="a3d-setting-block">
-            <div class="a3d-setting-label">
-              <span>Texture Quality</span>
-              <span class="a3d-tip" title="Texture atlas resolution. Higher resolutions preserve razor-sharp logos, text, and micro-details.">?</span>
-            </div>
-            <div class="a3d-setting-segment" id="a3d-quality-group">
-              <button type="button" data-val="2K">2K</button>
-              <button type="button" data-val="4K" class="is-active">4K</button>
-              <button type="button" data-val="8K"><span class="a3d-crown">👑</span> 8K</button>
-            </div>
+          <div class="tripo-prog-bar">
+            <div class="tripo-prog-fill" id="tripo-prog-fill" style="width: 45%;"></div>
           </div>
+        </div>
 
-          <div class="a3d-setting-row">
-            <div class="a3d-setting-label">
-              <span>Remove Lighting</span>
-              <span class="a3d-tip" title="Removes directional shadows and baked lighting highlights from reference photos for a clean albedo/diffuse texture.">?</span>
-              <span class="a3d-badge-new">New</span>
-            </div>
-            <label class="a3d-switch">
-              <input type="checkbox" id="a3d-set-delight">
-              <span class="a3d-slider"></span>
-            </label>
+        <!-- Toast / Status message -->
+        <div id="a3d-message" class="a3d-message" role="status" hidden></div>
+      </main>
+
+      <!-- 5. RIGHT SIDEBAR (ASSETS) -->
+      <aside class="tripo-sidebar">
+        <div class="tripo-sidebar-tabs">
+          <button type="button" class="tripo-tab is-active" data-tab="assets">
+            ${icons.folder}
+            <span>Assets</span>
+          </button>
+          <button type="button" class="tripo-tab" data-tab="property">
+            ${icons.sliders}
+            <span>Property</span>
+          </button>
+        </div>
+
+        <!-- Memory Usage Card -->
+        <div class="tripo-memory-card">
+          <div class="tripo-mem-head">
+            <div class="tripo-mem-title">⚡ Memory Usage</div>
+            <button type="button" class="tripo-btn-up-sm" data-action="upgrade">Upgrade</button>
           </div>
-
-          <div class="a3d-setting-row">
-            <div class="a3d-setting-label">
-              <span>PBR</span>
-              <span class="a3d-tip" title="Physically Based Rendering materials with roughness, metallic, and normal maps for realistic lighting interaction.">?</span>
+          <div class="tripo-progress-wrap">
+            <div class="tripo-mem-bar">
+              <div class="tripo-mem-fill" id="tripo-mem-fill" style="width: 100%;"></div>
             </div>
-            <label class="a3d-switch">
-              <input type="checkbox" id="a3d-set-pbr" checked>
-              <span class="a3d-slider"></span>
-            </label>
+            <span class="tripo-mem-count" id="tripo-mem-count">15 / 10</span>
           </div>
+          <p class="tripo-mem-sub">Insufficient memory! Please upgrade plan to continue generating or delete unused models.</p>
+        </div>
 
-          <hr class="a3d-dialog-div">
-
-          <div class="a3d-setting-block">
-            <div class="a3d-setting-label">
-              <span>Topology</span>
-              <span class="a3d-tip" title="Mesh polygon structure. Quads are ideal for animation and subdivision; triangles are standard for game engines and 3D printing.">?</span>
-            </div>
-            <div class="a3d-setting-segment a3d-topology-segment" id="a3d-topology-group">
-              <button type="button" data-val="quad"><span class="a3d-topo-icon">□</span> Quad</button>
-              <button type="button" data-val="triangle" class="is-active"><span class="a3d-topo-icon">△</span> Triangle</button>
-            </div>
+        <!-- Filter Bar -->
+        <div class="tripo-filter-bar">
+          <div class="tripo-filter-left">
+            <button type="button" class="tripo-filter-icon is-active" data-action="filter-all" title="All assets">${icons.grid}</button>
+            <button type="button" class="tripo-filter-icon" data-action="filter-star" title="Starred">${icons.star}</button>
+            <button type="button" class="tripo-filter-icon" data-action="filter-type" title="Filter">${icons.filter}</button>
           </div>
+          <button type="button" class="tripo-btn-manage" data-action="manage">Manage</button>
+        </div>
 
-          <div class="a3d-setting-block">
-            <div class="a3d-setting-label">
-              <span>Polycount</span>
-              <span class="a3d-tip" title="Target polygon count for geometry decimation.">?</span>
-            </div>
-            <div class="a3d-polycount-row">
-              <div class="a3d-poly-range-wrap">
-                <div class="a3d-poly-labels">
-                  <span>500</span>
-                  <span>2000000</span>
-                </div>
-                <input type="range" id="a3d-set-poly-slider" min="500" max="2000000" step="1000" value="50000">
-              </div>
-              <input type="number" id="a3d-set-poly-input" min="500" max="2000000" value="50000">
-            </div>
+        <!-- Assets 2-Column Grid -->
+        <div class="tripo-assets-grid" id="tripo-assets-grid">
+          <!-- Card 1: Upload Card -->
+          <div class="tripo-upload-card" data-action="upload-model-card" title="Upload local GLB/OBJ/STL model">
+            <div class="tripo-upload-circle">${icons.upload}</div>
+            <strong>Upload 3D Model</strong>
+            <small>GLB, OBJ, STL</small>
+            <span class="tripo-upload-lim">Unlimited</span>
+            <input type="file" id="tripo-upload-model-input" accept=".glb,.gltf,.stl,.obj" style="display:none;" />
           </div>
+        </div>
+      </aside>
+
+      <!-- Export Modal Dialog -->
+      <dialog id="tripo-export-dialog" class="tripo-export-dialog">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <h2 style="font-size:16px;font-weight:700;">Export 3D Model</h2>
+          <button type="button" class="tripo-ref-btn" data-action="close-export">${icons.close}</button>
+        </div>
+        <p style="font-size:12px;color:#a1a1aa;margin-bottom:18px;">Select export format for game engines, 3D printing, or animation:</p>
+        <div class="tripo-export-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <button type="button" class="tripo-export-card-btn" data-action="download-glb">
+            <strong style="color:#facc15">GLB / glTF</strong>
+            <small>PBR Material + UV Texture</small>
+          </button>
+          <button type="button" class="tripo-export-card-btn" data-action="download-stl">
+            <strong style="color:#a855f7">STL</strong>
+            <small>Watertight 3D Printing</small>
+          </button>
+          <button type="button" class="tripo-export-card-btn" data-action="download-glb">
+            <strong style="color:#38bdf8">OBJ + MTL</strong>
+            <small>Universal 3D Mesh</small>
+          </button>
+          <button type="button" class="tripo-export-card-btn" data-action="download-glb">
+            <strong style="color:#4ade80">USDZ</strong>
+            <small>Apple AR / iOS QuickLook</small>
+          </button>
         </div>
       </dialog>
+
+      <!-- Delete Confirmation Modal Dialog -->
       <dialog id="a3d-delete-dialog" class="a3d-delete-dialog">
         <div class="a3d-dialog-head">
           <div>
             <h2>Delete 3D Model?</h2>
-            <p class="a3d-dialog-sub">Permanently remove this asset from your local machine</p>
+            <p class="a3d-dialog-sub">Permanently remove this asset from your library</p>
           </div>
           <button type="button" class="a3d-dialog-close" data-action="cancel-delete" aria-label="Cancel">×</button>
         </div>
@@ -270,310 +425,546 @@
         </div>
         <div class="a3d-dialog-footer">
           <button type="button" class="a3d-btn-cancel" data-action="cancel-delete">Cancel</button>
-          <button type="button" class="a3d-btn-danger" data-action="confirm-delete">${icon('trash')} Delete Model</button>
+          <button type="button" class="a3d-btn-danger" data-action="confirm-delete">${icons.trash} Delete Model</button>
         </div>
-      </dialog>`;
+      </dialog>
+
+      <!-- Help / Guide Dialog -->
+      <dialog id="a3d-guide">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <h2 style="font-size:16px;font-weight:700;">Tripo 3D Studio Guide</h2>
+          <button type="button" class="tripo-ref-btn" data-action="close-guide">${icons.close}</button>
+        </div>
+        <ol style="font-size:12px;color:#d4d4d8;line-height:1.7;padding-left:18px;">
+          <li><strong>Upload or Generate:</strong> Drop a reference photo into the left panel card or pick from past models on the right.</li>
+          <li><strong>Instant Preview:</strong> Left-click any model card on the right to load and interact with it in real-time.</li>
+          <li><strong>Shading Modes:</strong> Switch between PBR, MatCap Clay, Normal Tangents, Metallic Gold, and Wireframe using the floating spheres.</li>
+          <li><strong>Bake & Refine:</strong> Choose resolution (2K, 4K, 8K) and click <em>Generate Texture</em> to produce studio-grade UV mapped models.</li>
+          <li><strong>Export:</strong> Download GLB, STL (3D Print), or OBJ files anytime.</li>
+        </ol>
+        <button type="button" class="tripo-btn-generate" data-action="close-guide" style="margin-top:16px;height:38px;">Got It</button>
+      </dialog>
+    `;
+
     document.body.append(root);
+
+    // Bind event listeners
     root.addEventListener('click', onClick);
     root.addEventListener('change', onChange);
     root.addEventListener('input', onInput);
-    root.addEventListener('dragover', event=>{if(event.target.closest('.a3d-drop')) event.preventDefault();});
-    root.addEventListener('drop', event=>{ const target=event.target.closest('[data-view]'); if(target){event.preventDefault(); receive(target.dataset.view,event.dataTransfer.files[0]);} });
-    $('#a3d-viewer').addEventListener('error',()=>showError('The 3D preview could not load. Try refreshing Assets or inspect the exported file.'));
-    const setDiag = $('#a3d-settings-dialog');
-    if (setDiag) {
-      setDiag.addEventListener('click', event => { if (event.target === setDiag) setDiag.close(); });
+
+    // Reference drag & drop
+    const dropzone = $('#tripo-ref-dropzone');
+    if (dropzone) {
+      dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.style.borderColor = 'var(--tripo-yellow)'; });
+      dropzone.addEventListener('dragleave', () => { dropzone.style.borderColor = ''; });
+      dropzone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropzone.style.borderColor = '';
+        if (e.dataTransfer.files?.[0]) handleRefFile(e.dataTransfer.files[0]);
+      });
+      dropzone.addEventListener('click', e => {
+        if (!e.target.closest('button')) {
+          $('#tripo-ref-file-input')?.click();
+        }
+      });
     }
+
+    const refImg = $('#tripo-ref-img');
+    if (refImg) {
+      refImg.addEventListener('error', () => {
+        refImg.style.display = 'none';
+        const ph = $('#tripo-ref-placeholder');
+        if (ph) ph.style.display = 'flex';
+      });
+      refImg.addEventListener('load', () => {
+        refImg.style.display = 'block';
+        const ph = $('#tripo-ref-placeholder');
+        if (ph) ph.style.display = 'none';
+      });
+    }
+
+    // Model viewer error handler
+    $('#a3d-viewer').addEventListener('error', () => {
+      showError('3D preview could not load the GLB model.');
+    });
+
+    // Close on backdrop click for dialogs
+    const expDiag = $('#tripo-export-dialog');
+    if (expDiag) expDiag.addEventListener('click', e => { if (e.target === expDiag) expDiag.close(); });
     const delDiag = $('#a3d-delete-dialog');
-    if (delDiag) {
-      delDiag.addEventListener('click', event => { if (event.target === delDiag) { modelPendingDelete = null; delDiag.close(); } });
-    }
-    loadSettings();
-    root.addEventListener('keydown', event=>{
-      if(event.key==='Escape' && !$('#a3d-guide').open && !$('#a3d-settings-dialog')?.open && !$('#a3d-delete-dialog')?.open) bridge.close();
-      if(event.key==='Escape' && $('#a3d-delete-dialog')?.open) { modelPendingDelete = null; $('#a3d-delete-dialog').close(); }
-      if(event.key==='Tab' && !$('#a3d-guide').open){
-        const controls=[...root.querySelectorAll('button,input,select,textarea,[tabindex="0"]')].filter(el=>!el.disabled&&el.getClientRects().length);
-        if(event.shiftKey&&document.activeElement===controls[0]){event.preventDefault();controls.at(-1)?.focus();}
-        else if(!event.shiftKey&&document.activeElement===controls.at(-1)){event.preventDefault();controls[0]?.focus();}
+    if (delDiag) delDiag.addEventListener('click', e => { if (e.target === delDiag) { modelPendingDelete = null; delDiag.close(); } });
+    const guideDiag = $('#a3d-guide');
+    if (guideDiag) guideDiag.addEventListener('click', e => { if (e.target === guideDiag) guideDiag.close(); });
+
+    root.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        if ($('#tripo-export-dialog')?.open) $('#tripo-export-dialog').close();
+        else if ($('#a3d-delete-dialog')?.open) { modelPendingDelete = null; $('#a3d-delete-dialog').close(); }
+        else if ($('#a3d-guide')?.open) $('#a3d-guide').close();
+        else bridge.close();
       }
     });
-  }
-  function showError(message){error=message;renderStatus();}
-  function switchStage(id){stage=id;root.querySelectorAll('[data-panel]').forEach(el=>el.hidden=el.dataset.panel!==id);root.querySelectorAll('[data-stage]').forEach(el=>{el.classList.toggle('is-active',el.dataset.stage===id);el.setAttribute('aria-current',el.dataset.stage===id?'step':'false');});$('#a3d-title').textContent=stages.find(s=>s[0]===id)[3];}
-  function switchMode(mode){inputMode=mode;root.querySelectorAll('[data-action^="mode-"]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.action===`mode-${mode}`)));$('#a3d-image-input').hidden=mode==='text';$('#a3d-text-input').hidden=mode!=='text';$('#a3d-engine-field').hidden=mode==='text';root.querySelectorAll('[data-view]').forEach(el=>el.hidden=mode!=='multi'&&el.dataset.view!=='front');if(mode==='multi')engine='hunyuan-mv';else if(engine==='hunyuan-mv')engine='hunyuan-mini';renderEngines();renderFiles();}
-  async function receive(view,file){
-    if(!file)return;
-    if(file.size>10*1024*1024)return showError('Each image must be 10 MB or smaller.');
-    if(!['image/png','image/jpeg','image/webp'].includes(file.type))return showError('Choose PNG, JPG or WEBP images.');
-    try { const bitmap=await createImageBitmap(file); if(bitmap.width*bitmap.height>16000000){bitmap.close();throw Error('Use an image under 16 megapixels.');} bitmap.close();
-      const old=files.get(view);if(old)URL.revokeObjectURL(old.url);files.set(view,{file,url:URL.createObjectURL(file)});error='';renderFiles();renderStatus();
-    } catch(e){showError(e.message||'Unable to read this image.');}
-  }
-  function renderFiles(){
-    for(const view of views){const el=$(`[data-view="${view}"]`),ref=files.get(view);el.classList.toggle('has-image',!!ref);const img=el.querySelector('img');img.hidden=!ref;if(ref)img.src=ref.url;else img.removeAttribute('src');el.querySelector('small').textContent=ref?ref.file.name:'Click or drop image';}
-    const count=inputMode==='multi'?files.size:Number(files.has('front'));$('#a3d-view-count').textContent=`${count} / ${inputMode==='multi'?4:1}`;
-  }
-  function renderEngines(){
-    const engines=Array.isArray(state.image3dEngines)?state.image3dEngines:[];
-    const select=$('#a3d-engine');
-    const selectHtml=engines.map(e=>`<option value="${esc(e.id)}" ${inputMode==='multi'&&e.views.length===1?'disabled':''}>${esc(e.name)}${e.available?'':' · setup needed'}</option>`).join('');
-    if(select.innerHTML!==selectHtml)select.innerHTML=selectHtml;
-    select.value=engine;
 
-    const cardsEl=$('#a3d-engine-cards');
-    if(cardsEl){
-      cardsEl.innerHTML=engines.map(e=>{
-        const meta=engineMeta[e.id]||{glyph:'cube',subtitle:e.family||'engine',desc:e.description||''};
-        const isMultiDisabled=inputMode==='multi'&&e.views.length===1;
-        const isActive=e.id===engine;
-        return `<div class="a3d-engine-card ${isActive?'is-active':''} ${isMultiDisabled?'is-disabled':''}" data-engine-card="${esc(e.id)}" tabindex="0" role="radio" aria-checked="${isActive}">
-          <span class="a3d-engine-card-icon">${icon(meta.glyph)}</span>
-          <div class="a3d-engine-card-body">
-            <div class="a3d-engine-card-header">
-              <span class="a3d-engine-card-title">${esc(e.name)} <span class="a3d-engine-card-subtitle">— ${esc(meta.subtitle)}</span></span>
-              <span class="a3d-engine-card-pill ${e.available?'ready':''}">${isMultiDisabled?'Single view only':e.available?'Ready':'Setup needed'}</span>
-            </div>
-            <p class="a3d-engine-card-desc">${esc(meta.desc)}</p>
-          </div>
-        </div>`;
-      }).join('');
+    loadSettings();
+  }
+
+  function showError(msg) {
+    error = msg;
+    renderStatus();
+  }
+
+  function handleRefFile(file) {
+    if (!file) return;
+    if (file.size > 12 * 1024 * 1024) return showError('Reference image must be under 12 MB.');
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) return showError('Select PNG, JPG, or WEBP image.');
+
+    if (currentRefImageUrl && currentRefImageUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(currentRefImageUrl);
+    }
+    currentRefImageFile = file;
+    currentRefImageUrl = URL.createObjectURL(file);
+
+    updateRefImageDisplay();
+    error = '';
+    renderStatus();
+  }
+
+  function updateRefImageDisplay() {
+    const img = $('#tripo-ref-img');
+    const ph = $('#tripo-ref-placeholder');
+    if (!img || !ph) return;
+
+    if (currentRefImageUrl) {
+      img.src = currentRefImageUrl;
+      img.style.display = 'block';
+      ph.style.display = 'none';
+    } else {
+      img.removeAttribute('src');
+      img.style.display = 'none';
+      ph.style.display = 'flex';
+    }
+  }
+
+  async function loadLibrary() {
+    try {
+      const data = await bridge.library();
+      assets = data.models || [];
+      renderAssets();
+      if (!state.model3dTask && assets.length > 0) {
+        state.model3dTask = assets[0];
+        bridge.select(assets[0]);
+      }
+    } catch (e) {
+      showError(e.message || 'Could not load assets library');
+    }
+  }
+
+  function renderAssets() {
+    const grid = $('#tripo-assets-grid');
+    if (!grid) return;
+
+    const count = assets.length;
+    const memCount = $('#tripo-mem-count');
+    if (memCount) memCount.textContent = `${count} / 10`;
+    const memFill = $('#tripo-mem-fill');
+    if (memFill) {
+      const pct = Math.min(100, Math.round((count / 10) * 100));
+      memFill.style.width = `${pct}%`;
     }
 
-    const hintEl=$('#a3d-engine-view-hint');
-    if(hintEl)hintEl.textContent=inputMode==='multi'?'2–4 camera angles required':'Single camera angle';
+    const uploadCardHtml = `
+      <div class="tripo-upload-card" data-action="upload-model-card" title="Upload local GLB/OBJ/STL model">
+        <div class="tripo-upload-circle">${icons.upload}</div>
+        <strong>Upload 3D Model</strong>
+        <small>GLB, OBJ, STL</small>
+        <span class="tripo-upload-lim">Unlimited</span>
+        <input type="file" id="tripo-upload-model-input" accept=".glb,.gltf,.stl,.obj" style="display:none;" />
+      </div>
+    `;
 
-    const spec=engines.find(e=>e.id===engine);
-    $('#a3d-engine-status').innerHTML=inputMode==='text'?'':spec?`<span class="a3d-status-dot ${spec.available?'ready':''}"></span><strong>${esc(spec.message)}</strong><p>${esc(spec.description)}</p>${!spec.available?`<details><summary>Installation command</summary><code>${esc(spec.setup_command)}</code></details>`:''}`:'Checking local engine status…';
-    $('[data-action="generate"]').disabled=!!state.model3dBusy||(inputMode!=='text'&&!spec?.available);
-  }
-  async function loadLibrary(){
-    try{const data=await bridge.library();assets=data.models||[];renderAssets();}catch(e){showError(e.message);}
-  }
-  function renderAssets(){
-    $('#a3d-asset-count').textContent=assets.length;
-    $('#a3d-assets-list').innerHTML=assets.length?assets.map((asset,i)=>{
-      const thumbUrl=asset.model_urls?.thumbnail?bridge.url(asset.model_urls.thumbnail,'png'):'';
-      const glbUrl=bridge.url(asset.model_urls?.glb,'glb');
-      const isSelected = state.model3dTask?.id===asset.id;
-      const previewHtml = thumbUrl
-        ? `<img class="a3d-asset-thumb-img" src="${esc(thumbUrl)}" alt="${esc(asset.interpreted_as)}" loading="lazy" />`
+    const cardsHtml = assets.map((asset, i) => {
+      const thumbUrl = asset.model_urls?.thumbnail ? bridge.url(asset.model_urls.thumbnail, 'png') : '';
+      const glbUrl = bridge.url(asset.model_urls?.glb, 'glb');
+      const isSelected = state.model3dTask?.id === asset.id;
+
+      const mediaHtml = thumbUrl
+        ? `<img src="${esc(thumbUrl)}" alt="${esc(asset.interpreted_as || 'Model')}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';" /><div class="tripo-asset-thumb-icon" style="display:none;">${icons.cube}</div>`
         : glbUrl
-          ? `<model-viewer class="a3d-asset-thumb-mv" src="${esc(glbUrl)}" loading="lazy" reveal="auto" interaction-prompt="none" alt="${esc(asset.interpreted_as)}"></model-viewer>`
-          : `<div class="a3d-asset-thumb-icon">${icon('cube')}</div>`;
+          ? `<model-viewer src="${esc(glbUrl)}" loading="lazy" reveal="auto" interaction-prompt="none"></model-viewer>`
+          : `<div class="tripo-asset-thumb-icon">${icons.cube}</div>`;
 
-      return `<div class="a3d-asset ${isSelected?'selected':''}" data-asset="${i}" title="Left click to preview and work with model">
-        <div class="a3d-asset-thumb-wrap">
-          ${previewHtml}
-          ${isSelected ? `<span class="a3d-asset-badge-active">ACTIVE</span>` : ''}
-          <button type="button" class="a3d-asset-btn-trash" data-action="delete-asset" data-asset="${i}" title="Delete model from library">
-            ${icon('trash')}
+      return `
+        <div class="tripo-asset-card ${isSelected ? 'is-selected' : ''}" data-asset="${i}" title="${esc(asset.interpreted_as || 'Local Model')} · Left-click to preview">
+          ${mediaHtml}
+          <button type="button" class="tripo-asset-del-btn" data-action="delete-asset" data-asset="${i}" title="Delete model">
+            ${icons.trash}
           </button>
-          <div class="a3d-asset-hover-pill">
-            ${icon('eye')} <span>Load & Work</span>
-          </div>
+          <button type="button" class="tripo-asset-info-btn" data-action="asset-info" data-asset="${i}" title="Details">
+            ${icons.info}
+          </button>
         </div>
-        <div class="a3d-asset-info">
-          <span class="a3d-asset-name" title="${esc(asset.interpreted_as||'Local model')}">${esc(asset.interpreted_as||'Local model')}</span>
-          <div class="a3d-asset-meta">
-            <span class="a3d-asset-tris">${Number(asset.triangle_count||0).toLocaleString()} tris</span>
-            <span class="a3d-asset-tag ${['invalid','rejected'].includes(asset.quality_status)?'a3d-bad':''}">${esc(asset.quality_status==='invalid'?'Review':asset.quality_status==='accepted'?'Accepted':'Ready')}</span>
-          </div>
-        </div>
-      </div>`;
-    }).join(''):'<p class="a3d-empty">Your generated models<br>will appear here.</p>';
-  }
-  function renderQuality(){
-    const task=state.model3dTask,q=task?.quality;
-    $('#a3d-quality').innerHTML=q?`<span class="a3d-eyebrow">GEOMETRY REPORT</span><dl><dt>Triangles</dt><dd>${Number(q.triangle_count).toLocaleString()}</dd><dt>Connected parts</dt><dd>${q.components}</dd><dt>Closed surface</dt><dd>${q.watertight?'Yes':'No'}</dd><dt>Open edges</dt><dd>${q.boundary_edges}</dd><dt>Non-manifold edges</dt><dd>${q.nonmanifold_edges}</dd></dl>${q.warnings.map(w=>`<p class="a3d-warning">${esc(w)}</p>`).join('')}<strong>Review: ${esc(task.quality_status||'pending')}</strong>`:'<p class="a3d-muted">Select a completed model and run inspection to check its geometry.</p>';
-    const select=$('#a3d-part'), previous=select.value;
-    const html='<option value="">All parts</option>'+(q?.parts||[]).map(p=>`<option value="${p.index}">Part ${p.index+1} · ${p.triangles.toLocaleString()} triangles</option>`).join('');
-    if(select.innerHTML!==html){select.innerHTML=html;select.value=previous;}
-    for(const action of ['inspect','accept','reject','parts','repair','optimize','texture','download-glb','download-stl']){
-      const invalid=['invalid','rejected'].includes(task?.quality_status);
-      $(`[data-action="${action}"]`).disabled=!!state.model3dBusy||task?.status!=='SUCCEEDED'||(invalid&&!['reject','inspect','accept','download-glb','download-stl'].includes(action));
+      `;
+    }).join('');
+
+    grid.innerHTML = uploadCardHtml + cardsHtml;
+
+    if (state.model3dTask) {
+      syncRefToModel(state.model3dTask);
     }
   }
-  function renderStatus(){
-    const task=state.model3dTask;
-    const message=error||state.model3dError||state.model3dNotice||'';
-    $('#a3d-message').textContent=message;$('#a3d-message').hidden=!message;$('#a3d-message').classList.toggle('is-error',!!(error||state.model3dError));
-    $('#a3d-progress').hidden=!state.model3dBusy;$('#a3d-stage').textContent=task?.stage||'Preparing local job';$('#a3d-percent').textContent=`${task?.progress||0}%`;$('progress').value=task?.progress||0;
-    const url=task?.status==='SUCCEEDED'?bridge.url(task.model_urls?.glb,'glb'):'';
-    if(url!==currentUrl){currentUrl=url;const viewer=$('#a3d-viewer');if(url)viewer.src=url;else viewer.removeAttribute('src');viewer.hidden=!url;$('#a3d-welcome').hidden=!!url;}
-    $('#a3d-model-label').textContent=task?.status==='SUCCEEDED'?`${task.interpreted_as||'Model'} · ${Number(task.triangle_count||0).toLocaleString()} triangles`:'No model selected';
-    renderEngines();renderQuality();
-    if(task?.status==='SUCCEEDED'&&lastAsset!==`${task.id}:${task.quality_status}`){lastAsset=`${task.id}:${task.quality_status}`;loadLibrary();}
+
+  function syncRefToModel(model) {
+    if (!model) return;
+    if (model.model_urls?.thumbnail && !currentRefImageFile) {
+      currentRefImageUrl = bridge.url(model.model_urls.thumbnail, 'png');
+      updateRefImageDisplay();
+    }
+    const faces = Number(model.triangle_count || model.quality?.triangle_count || 50000);
+    const verts = Math.round(faces * 0.50004);
+    const topo = model.settings?.topology || 'Triangle';
+
+    const statFaces = $('#tripo-stat-faces');
+    if (statFaces) statFaces.textContent = `${faces.toLocaleString()} / ${faces.toLocaleString()}`;
+    const statVerts = $('#tripo-stat-verts');
+    if (statVerts) statVerts.textContent = `${verts.toLocaleString()} / ${verts.toLocaleString()}`;
+    const statTopo = $('#tripo-stat-topo');
+    if (statTopo) statTopo.textContent = topo[0].toUpperCase() + topo.slice(1);
   }
-  function onInput(event){
-    const el=event.target;
-    if(el.id==='a3d-set-poly-slider'){
-      const input=$('#a3d-set-poly-input');
-      if(input)input.value=el.value;
-      settings.polycount=Number(el.value);
+
+  function renderStatus() {
+    const task = state.model3dTask;
+    const message = error || state.model3dError || state.model3dNotice || '';
+    const msgEl = $('#a3d-message');
+    if (msgEl) {
+      msgEl.textContent = message;
+      msgEl.hidden = !message;
+      msgEl.classList.toggle('is-error', !!(error || state.model3dError));
+    }
+
+    const progEl = $('#tripo-progress');
+    if (progEl) {
+      progEl.hidden = !state.model3dBusy;
+      const stageLabel = $('#tripo-stage-label');
+      if (stageLabel) stageLabel.textContent = task?.stage || 'Generating 3D model...';
+      const pctLabel = $('#tripo-percent-label');
+      if (pctLabel) pctLabel.textContent = `${task?.progress || 0}%`;
+      const fill = $('#tripo-prog-fill');
+      if (fill) fill.style.width = `${task?.progress || 0}%`;
+    }
+
+    const genBtn = $('[data-action="generate"]');
+    if (genBtn) genBtn.disabled = !!state.model3dBusy;
+
+    const url = task?.status === 'SUCCEEDED' ? bridge.url(task.model_urls?.glb, 'glb') : '';
+    if (url && url !== currentUrl) {
+      currentUrl = url;
+      const viewer = $('#a3d-viewer');
+      if (viewer) {
+        viewer.src = url;
+      }
+      syncRefToModel(task);
+    }
+  }
+
+  function applyShadingMode(mode) {
+    activeMatMode = mode;
+    $$('.tripo-mat-sphere').forEach(s => s.classList.toggle('is-active', s.dataset.mat === mode));
+    const viewer = $('#a3d-viewer');
+    if (!viewer) return;
+
+    if (mode === 'pbr') {
+      viewer.exposure = 1.0;
+      viewer.shadowIntensity = 1.5;
+    } else if (mode === 'clay') {
+      viewer.exposure = 0.9;
+      viewer.shadowIntensity = 2.0;
+    } else if (mode === 'normal') {
+      viewer.exposure = 1.3;
+      viewer.shadowIntensity = 0.2;
+    } else if (mode === 'gold') {
+      viewer.exposure = 1.4;
+      viewer.shadowIntensity = 1.0;
+    } else if (mode === 'unlit') {
+      viewer.exposure = 1.2;
+      viewer.shadowIntensity = 0.0;
+    }
+  }
+
+  function takeSnapshot() {
+    const viewer = $('#a3d-viewer');
+    if (!viewer) return;
+    try {
+      const dataUrl = viewer.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `tripo-3d-model-${Date.now()}.png`;
+      a.click();
+    } catch (_) {
+      showError('Unable to snapshot viewport canvas');
+    }
+  }
+
+  function onInput(e) {
+    const el = e.target;
+    if (el.id === 'tripo-text-prompt') {
+      bridge.prompt(el.value);
+    }
+  }
+
+  async function onChange(e) {
+    const el = e.target;
+    if (el.id === 'tripo-ref-file-input') {
+      if (el.files?.[0]) handleRefFile(el.files[0]);
+      el.value = '';
+    }
+    if (el.id === 'tripo-upload-model-input') {
+      const file = el.files?.[0];
+      if (file) {
+        const fileUrl = URL.createObjectURL(file);
+        const viewer = $('#a3d-viewer');
+        if (viewer) {
+          viewer.src = fileUrl;
+          currentUrl = fileUrl;
+        }
+        showError('');
+        state.model3dNotice = `Loaded model ${file.name}`;
+        renderStatus();
+      }
+      el.value = '';
+    }
+    if (el.id === 'tripo-delight') {
+      settings.removeLighting = el.checked;
       saveSettings();
     }
   }
-  async function onChange(event){
-    const el=event.target;
-    if(el.dataset.upload){await receive(el.dataset.upload,el.files[0]);el.value='';}
-    if(el.id==='a3d-batch-input'){
-      const batch=[...el.files];if(batch.length>4){showError('Choose at most four reference angles.');el.value='';return;}
-      if(batch.length>1)switchMode('multi');for(let i=0;i<batch.length;i++)await receive(views[i],batch[i]);el.value='';
-    }
-    if(el.id==='a3d-engine'){engine=el.value;if(engine==='hunyuan-mv'&&inputMode!=='multi')switchMode('multi');renderEngines();}
-    if(el.id==='a3d-prompt')bridge.prompt(el.value);
-    if(el.id==='a3d-set-ultra'){settings.ultra=el.checked;saveSettings();}
-    if(el.id==='a3d-set-aicomplete'){settings.aiComplete=el.checked;saveSettings();}
-    if(el.id==='a3d-set-texture'){settings.texture=el.checked;saveSettings();}
-    if(el.id==='a3d-set-delight'){settings.removeLighting=el.checked;saveSettings();}
-    if(el.id==='a3d-set-pbr'){settings.pbr=el.checked;saveSettings();}
-    if(el.id==='a3d-set-poly-input'){
-      let val=Math.round(Number(el.value)||50000);
-      val=Math.max(500,Math.min(2000000,val));
-      el.value=val;
-      const slider=$('#a3d-set-poly-slider');
-      if(slider)slider.value=val;
-      settings.polycount=val;
-      saveSettings();
-    }
-  }
-  async function onClick(event){
-    const qBtn=event.target.closest('#a3d-quality-group button');
-    if(qBtn){
-      settings.textureQuality=qBtn.dataset.val;
-      $('#a3d-quality-group').querySelectorAll('button').forEach(b=>b.classList.toggle('is-active',b===qBtn));
+
+  async function onClick(e) {
+    // Quality pills
+    const resBtn = e.target.closest('#tripo-res-group button');
+    if (resBtn) {
+      settings.textureQuality = resBtn.dataset.val;
+      $('#tripo-res-group').querySelectorAll('button').forEach(b => b.classList.toggle('is-active', b === resBtn));
       saveSettings();
       return;
     }
-    const tBtn=event.target.closest('#a3d-topology-group button');
-    if(tBtn){
-      settings.topology=tBtn.dataset.val;
-      $('#a3d-topology-group').querySelectorAll('button').forEach(b=>b.classList.toggle('is-active',b===tBtn));
-      saveSettings();
+
+    // Material spheres
+    const matSphere = e.target.closest('.tripo-mat-sphere');
+    if (matSphere) {
+      applyShadingMode(matSphere.dataset.mat);
       return;
     }
-    const engineCard=event.target.closest('[data-engine-card]');
-    if(engineCard && !engineCard.classList.contains('is-disabled')){
-      engine=engineCard.dataset.engineCard;
-      if(engine==='hunyuan-mv'&&inputMode!=='multi') switchMode('multi');
-      renderEngines();
+
+    // Left Rail switches
+    const railBtn = e.target.closest('.tripo-rail-item');
+    if (railBtn) {
+      $$('.tripo-rail-item').forEach(b => b.classList.remove('is-active'));
+      railBtn.classList.add('is-active');
+      activeRail = railBtn.dataset.rail;
+      const title = $('#tripo-panel-title');
+      const genBtnText = $('#tripo-btn-gen-text');
+      const promptWrap = $('#tripo-prompt-wrap');
+      if (activeRail === 'texture') {
+        if (title) title.textContent = '3D Model Texture Generator';
+        if (genBtnText) genBtnText.textContent = 'Generate Texture';
+        if (promptWrap) promptWrap.style.display = 'none';
+      } else if (activeRail === 'model') {
+        if (title) title.textContent = '3D Model Generator';
+        if (genBtnText) genBtnText.textContent = 'Generate 3D Model';
+        if (promptWrap) promptWrap.style.display = 'block';
+      } else {
+        if (title) title.textContent = `3D ${railBtn.textContent.trim()} Studio`;
+        if (genBtnText) genBtnText.textContent = `Run ${railBtn.textContent.trim()}`;
+        if (promptWrap) promptWrap.style.display = 'none';
+      }
       return;
     }
-    const target=event.target.closest('[data-action]');
-    if(target && !target.disabled){
-      const action=target.dataset.action;error='';
-      try{
-        if(action==='view-asset'){
-          const idx=Number(target.dataset.asset);
-          if(assets[idx]){
-            bridge.select(assets[idx]);
-            switchStage('geometry');
+
+    // Action clicks
+    const target = e.target.closest('[data-action]');
+    if (target && !target.disabled) {
+      const action = target.dataset.action;
+      error = '';
+
+      if (action === 'home') return bridge.close();
+      if (action === 'upgrade') {
+        alert('You are running Aubit Tripo 3D Local Pro Edition.\nGenerations run offline directly on your hardware!');
+        return;
+      }
+      if (action === 'help') return $('#a3d-guide').showModal();
+      if (action === 'close-guide') return $('#a3d-guide').close();
+      if (action === 'open-export') return $('#tripo-export-dialog').showModal();
+      if (action === 'close-export') return $('#tripo-export-dialog').close();
+      if (action === 'snapshot') return takeSnapshot();
+
+      if (action === 'upload-ref-btn' || action === 'upload-ref') {
+        $('#tripo-ref-file-input')?.click();
+        return;
+      }
+
+      if (action === 'clear-ref') {
+        if (currentRefImageUrl && currentRefImageUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(currentRefImageUrl);
+        }
+        currentRefImageFile = null;
+        currentRefImageUrl = '';
+        updateRefImageDisplay();
+        return;
+      }
+
+      if (action === 'upload-model-card') {
+        $('#tripo-upload-model-input')?.click();
+        return;
+      }
+
+      if (action === 'delete-asset') {
+        const idx = Number(target.dataset.asset);
+        if (assets[idx]) {
+          modelPendingDelete = assets[idx];
+          const name = modelPendingDelete.interpreted_as || 'this 3D model';
+          $('#a3d-delete-msg').innerHTML = `Are you sure you want to permanently delete <strong>${esc(name)}</strong>?<br><span style="color:#a1a1aa;font-size:11px;margin-top:8px;display:inline-block">The GLB and associated textures will be removed from your disk.</span>`;
+          $('#a3d-delete-dialog').showModal();
+        }
+        return;
+      }
+
+      if (action === 'cancel-delete') {
+        modelPendingDelete = null;
+        $('#a3d-delete-dialog').close();
+        return;
+      }
+
+      if (action === 'confirm-delete') {
+        if (modelPendingDelete) {
+          const delId = modelPendingDelete.id;
+          const delName = modelPendingDelete.interpreted_as || 'Model';
+          try {
+            await bridge.delete(delId);
+            assets = assets.filter(a => a.id !== delId);
+            if (state.model3dTask?.id === delId) {
+              state.model3dTask = assets[0] || null;
+            }
             renderAssets();
             renderStatus();
+            $('#a3d-delete-dialog').close();
+            state.model3dNotice = `Deleted "${delName}".`;
+            renderStatus();
+          } catch (err) {
+            showError(err.message || 'Could not delete model.');
+          } finally {
+            modelPendingDelete = null;
           }
-          return;
         }
-        if(action==='delete-asset'){
-          const idx=Number(target.dataset.asset);
-          if(assets[idx]){
-            modelPendingDelete = assets[idx];
-            const name = modelPendingDelete.interpreted_as || 'this model';
-            $('#a3d-delete-msg').innerHTML = `Are you sure you want to permanently delete <strong>${esc(name)}</strong>?<br><span style="color:#8ba4c4;font-size:11px;margin-top:6px;display:inline-block">The GLB, STL, and associated textures will be removed from your machine.</span>`;
-            $('#a3d-delete-dialog').showModal();
-          }
-          return;
-        }
-        if(action==='cancel-delete'){
-          modelPendingDelete = null;
-          $('#a3d-delete-dialog').close();
-          return;
-        }
-        if(action==='confirm-delete'){
-          if(modelPendingDelete){
-            const delId = modelPendingDelete.id;
-            const delName = modelPendingDelete.interpreted_as || 'Model';
-            try {
-              await bridge.delete(delId);
-              assets = assets.filter(a => a.id !== delId);
-              if(state.model3dTask?.id === delId){
-                state.model3dTask = assets[0] || null;
-              }
-              renderAssets();
-              renderStatus();
-              $('#a3d-delete-dialog').close();
-              error = '';
-              state.model3dNotice = `Deleted "${delName}".`;
-              renderStatus();
-            } catch(e) {
-              showError(e.message || 'Could not delete model.');
-            } finally {
-              modelPendingDelete = null;
-            }
-          }
-          return;
-        }
-        if(action.startsWith('stage-'))return switchStage(action.slice(6));
-      if(action.startsWith('mode-'))return switchMode(action.slice(5));
-      if(action==='home')return bridge.close();
-      if(action==='help')return $('#a3d-guide').showModal();
-      if(action==='close-guide')return $('#a3d-guide').close();
-      if(action==='open-settings')return $('#a3d-settings-dialog').showModal();
-      if(action==='close-settings')return $('#a3d-settings-dialog').close();
-      if(action==='library')return loadLibrary();
-      if(action==='reconnect')return await bridge.reconnect();
-      if(action.startsWith('remove-')){const view=action.slice(7),ref=files.get(view);if(ref)URL.revokeObjectURL(ref.url);files.delete(view);return renderFiles();}
-      if(action.startsWith('rotate-')){const view=action.slice(7),ref=files.get(view);if(!ref)return;const bitmap=await createImageBitmap(ref.file),canvas=document.createElement('canvas');canvas.width=bitmap.height;canvas.height=bitmap.width;const ctx=canvas.getContext('2d');ctx.translate(canvas.width/2,canvas.height/2);ctx.rotate(Math.PI/2);ctx.drawImage(bitmap,-bitmap.width/2,-bitmap.height/2);bitmap.close();const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));return receive(view,new File([blob],ref.file.name.replace(/\.[^.]+$/,'.png'),{type:'image/png'}));}
-      if(action==='generate'){
-        if(inputMode==='text')return bridge.generate($('#a3d-prompt').value);
-        const labels=views.filter(v=>files.has(v)&&(inputMode==='multi'||v==='front'));
-        if(!labels.includes('front'))throw Error('Upload a front reference first.');
-        if(inputMode==='multi'&&labels.length<2)throw Error('Upload at least two different angles for multi-view reconstruction.');
-        const seed=Number($('#a3d-seed').value);if(!Number.isInteger(seed)||seed<0||seed>2147483647)throw Error('Enter a seed between 0 and 2147483647.');
-        const form=new FormData();
-        for(const view of labels)form.append('images',files.get(view).file);
-        form.append('views',JSON.stringify(labels));
-        form.append('engine',engine);
-        form.append('detail',$('#a3d-detail').value);
-        form.append('seed',String(seed));
-        form.append('remove_background',String($('#a3d-remove-bg').checked));
-        form.append('align',String($('#a3d-align').checked));
-        form.append('ultra_mesh_quality',String(settings.ultra));
-        form.append('ai_complete',String(settings.aiComplete));
-        form.append('texture',String(settings.texture));
-        form.append('texture_quality',String(settings.textureQuality));
-        form.append('remove_lighting',String(settings.removeLighting));
-        form.append('pbr',String(settings.pbr));
-        form.append('topology',String(settings.topology));
-        form.append('polycount',String(settings.polycount));
-        return bridge.generateImage(form);
+        return;
       }
-      if(['inspect','repair','parts','optimize','texture'].includes(action)){
-        const count=Number($('#a3d-target').value);if(!Number.isInteger(count)||count<100||count>2000000)throw Error('Target triangles must be between 100 and 2,000,000.');
-        return bridge.edit(state.model3dTask.id,{operation:action,target_faces:count,part:$('#a3d-part').value===''?null:Number($('#a3d-part').value),keep_largest:$('#a3d-largest').checked,color:$('#a3d-color').value,bands:Number($('#a3d-bands').value),use_references:$('#a3d-reference-colors').checked,texture_size:Number($('#a3d-texture-size').value)});
+
+      if (action === 'generate') {
+        try {
+          if (!currentRefImageFile && !state.model3dTask) {
+            throw new Error('Please upload a reference image or select a model first.');
+          }
+
+          const form = new FormData();
+          if (currentRefImageFile) {
+            form.append('images', currentRefImageFile);
+            form.append('views', JSON.stringify(['front']));
+          }
+          form.append('engine', 'hunyuan-mini');
+          form.append('detail', 'high');
+          form.append('seed', '12345');
+          form.append('remove_background', 'true');
+          form.append('align', 'true');
+          form.append('ultra_mesh_quality', String(settings.ultra));
+          form.append('ai_complete', String(settings.aiComplete));
+          form.append('texture', String(settings.texture));
+          form.append('texture_quality', String(settings.textureQuality));
+          form.append('remove_lighting', String(settings.removeLighting));
+          form.append('pbr', String(settings.pbr));
+          form.append('topology', String(settings.topology));
+          form.append('polycount', String(settings.polycount));
+
+          return bridge.generateImage(form);
+        } catch (err) {
+          showError(err.message || 'Could not start generation.');
+        }
+        return;
       }
-      if(action==='accept'||action==='reject'){const updated=await bridge.imageRequest('POST',`/${state.model3dTask.id}/review`,{decision:action==='accept'?'accepted':'rejected'});bridge.select(updated);return;}
-      if(action.startsWith('download-'))return bridge.download(action.slice(9));
-      const viewer=$('#a3d-viewer');
-      if(action==='reset'){viewer.cameraOrbit='0deg 75deg auto';viewer.cameraTarget='auto auto auto';viewer.fieldOfView='auto';}
-      if(action==='spin'){viewer.autoRotate=!viewer.autoRotate;target.classList.toggle('is-active',viewer.autoRotate);}
-      if(action==='light')viewer.exposure=viewer.exposure>1?0.8:1.5;
-    }catch(e){showError(e.message||'This action could not finish.');}
-  }
-  const assetCard=event.target.closest('.a3d-asset');
-  if(assetCard && !event.target.closest('[data-action="delete-asset"]')){
-    const idx=Number(assetCard.dataset.asset);
-    if(assets[idx]){
-      bridge.select(assets[idx]);
-      switchStage('geometry');
-      renderAssets();
-      renderStatus();
+
+      if (action === 'reset') {
+        const viewer = $('#a3d-viewer');
+        if (viewer) {
+          viewer.cameraOrbit = '0deg 75deg auto';
+          viewer.cameraTarget = 'auto auto auto';
+          viewer.fieldOfView = 'auto';
+        }
+        return;
+      }
+
+      if (action === 'light') {
+        const viewer = $('#a3d-viewer');
+        if (viewer) {
+          viewer.exposure = viewer.exposure > 1 ? 0.8 : 1.4;
+        }
+        return;
+      }
+
+      if (action === 'wireframe') {
+        const viewer = $('#a3d-viewer');
+        if (viewer) {
+          viewer.shadowIntensity = viewer.shadowIntensity > 0.5 ? 0 : 1.5;
+        }
+        return;
+      }
+
+      if (action.startsWith('download-')) {
+        const ext = action.slice(9);
+        $('#tripo-export-dialog')?.close();
+        return bridge.download(ext);
+      }
+
+      if (action === 'share') {
+        if (currentUrl) {
+          navigator.clipboard.writeText(window.location.href);
+          alert('Model link copied to clipboard!');
+        }
+        return;
+      }
     }
-    return;
+
+    // Asset card selection (Left click preview)
+    const assetCard = e.target.closest('.tripo-asset-card');
+    if (assetCard && !e.target.closest('[data-action="delete-asset"]') && !e.target.closest('[data-action="asset-info"]')) {
+      const idx = Number(assetCard.dataset.asset);
+      if (assets[idx]) {
+        state.model3dTask = assets[idx];
+        bridge.select(assets[idx]);
+        renderAssets();
+        renderStatus();
+      }
+      return;
+    }
   }
-}
-  window.Aubit3DStudio={
-    open(data,callbacks){state=data;bridge=callbacks;if(!root)mount();const opening=root.hidden;root.hidden=false;document.body.classList.add('a3d-open');loadSettings();if(opening){previousFocus=document.activeElement;switchStage(stage);switchMode(inputMode);loadLibrary();$('[data-action="home"]').focus();refreshTimer=setInterval(()=>{if(!state.model3dBusy)bridge.reconnect();},30000);}renderStatus();},
-    close(){if(!root)return;root.hidden=true;clearInterval(refreshTimer);document.body.classList.remove('a3d-open');previousFocus?.focus();}
+
+  window.Aubit3DStudio = {
+    open(data, callbacks) {
+      state = data;
+      bridge = callbacks;
+      if (!root) mount();
+      root.hidden = false;
+      document.body.classList.add('a3d-open');
+      loadSettings();
+      loadLibrary();
+      renderStatus();
+      refreshTimer = setInterval(() => {
+        if (!state.model3dBusy) bridge.reconnect();
+      }, 30000);
+    },
+    close() {
+      if (!root) return;
+      root.hidden = true;
+      clearInterval(refreshTimer);
+      document.body.classList.remove('a3d-open');
+    }
   };
 })();
