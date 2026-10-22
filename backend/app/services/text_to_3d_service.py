@@ -75,6 +75,15 @@ class TextTo3DService:
     def get_file(self, task_id: str, extension: str) -> Path:
         path = model_output_dir() / f"{task_id}.{extension}"
         if not path.is_file():
+            if extension == "png":
+                directory = model_output_dir()
+                for fallback in (
+                    directory / "image-jobs" / task_id / "reference-front.png",
+                    directory / "image-jobs" / task_id / "thumbnail.png",
+                    directory / f"{task_id}_multiview_strip.png"
+                ):
+                    if fallback.is_file():
+                        return fallback
             raise HTTPException(status_code=404, detail="This 3D model file was not found.")
         return path
 

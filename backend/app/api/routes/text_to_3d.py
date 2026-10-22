@@ -21,12 +21,18 @@ def valid_task_id(task_id: str) -> str:
 
 def with_file_urls(result: dict, request: Request) -> dict:
     task_id = result["id"]
+    urls = {
+        "glb": str(request.url_for("download_glb", task_id=task_id)),
+        "stl": str(request.url_for("download_stl", task_id=task_id)),
+    }
+    try:
+        TextTo3DService().get_file(task_id, "png")
+        urls["thumbnail"] = str(request.url_for("download_thumb", task_id=task_id))
+    except Exception:
+        pass
     return {
         **result,
-        "model_urls": {
-            "glb": str(request.url_for("download_glb", task_id=task_id)),
-            "stl": str(request.url_for("download_stl", task_id=task_id)),
-        },
+        "model_urls": urls,
     }
 
 
@@ -74,3 +80,9 @@ def download_glb(task_id: str) -> FileResponse:
 def download_stl(task_id: str) -> FileResponse:
     path = TextTo3DService().get_file(valid_task_id(task_id), "stl")
     return FileResponse(path, media_type="model/stl", filename=f"aubit-{task_id[:8]}.stl")
+
+
+@router.get("/{task_id}/thumbnail.png", name="download_thumb")
+def download_thumb(task_id: str) -> FileResponse:
+    path = TextTo3DService().get_file(valid_task_id(task_id), "png")
+    return FileResponse(path, media_type="image/png", filename=f"aubit-{task_id[:8]}.png")

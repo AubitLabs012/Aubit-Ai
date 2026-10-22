@@ -353,20 +353,32 @@
   function renderAssets(){
     $('#a3d-asset-count').textContent=assets.length;
     $('#a3d-assets-list').innerHTML=assets.length?assets.map((asset,i)=>{
-      const url=bridge.url(asset.model_urls?.glb,'glb');
+      const thumbUrl=asset.model_urls?.thumbnail?bridge.url(asset.model_urls.thumbnail,'png'):'';
+      const glbUrl=bridge.url(asset.model_urls?.glb,'glb');
       const isSelected = state.model3dTask?.id===asset.id;
-      return `<div class="a3d-asset ${isSelected?'selected':''}" data-asset="${i}">
-        <div class="a3d-asset-thumb-wrap" data-action="view-asset" data-asset="${i}">
-          ${url?`<model-viewer src="${esc(url)}" loading="lazy" reveal="auto" interaction-prompt="none" alt="${esc(asset.interpreted_as)}"></model-viewer>`:icon('cube')}
-          <span class="a3d-asset-hover-pill">${icon('eye')} View</span>
+      const previewHtml = thumbUrl
+        ? `<img class="a3d-asset-thumb-img" src="${esc(thumbUrl)}" alt="${esc(asset.interpreted_as)}" loading="lazy" />`
+        : glbUrl
+          ? `<model-viewer class="a3d-asset-thumb-mv" src="${esc(glbUrl)}" loading="lazy" reveal="auto" interaction-prompt="none" alt="${esc(asset.interpreted_as)}"></model-viewer>`
+          : `<div class="a3d-asset-thumb-icon">${icon('cube')}</div>`;
+
+      return `<div class="a3d-asset ${isSelected?'selected':''}" data-asset="${i}" title="Left click to preview and work with model">
+        <div class="a3d-asset-thumb-wrap">
+          ${previewHtml}
+          ${isSelected ? `<span class="a3d-asset-badge-active">ACTIVE</span>` : ''}
+          <button type="button" class="a3d-asset-btn-trash" data-action="delete-asset" data-asset="${i}" title="Delete model from library">
+            ${icon('trash')}
+          </button>
+          <div class="a3d-asset-hover-pill">
+            ${icon('eye')} <span>Load & Work</span>
+          </div>
         </div>
-        <div class="a3d-asset-info" data-action="view-asset" data-asset="${i}">
+        <div class="a3d-asset-info">
           <span class="a3d-asset-name" title="${esc(asset.interpreted_as||'Local model')}">${esc(asset.interpreted_as||'Local model')}</span>
-          <small class="${['invalid','rejected'].includes(asset.quality_status)?'a3d-bad':''}">${esc(asset.quality_status==='invalid'?'Needs regeneration':asset.quality_status||'Unreviewed')} · ${Number(asset.triangle_count||0).toLocaleString()} tris</small>
-        </div>
-        <div class="a3d-asset-actions">
-          <button type="button" class="a3d-asset-act-btn a3d-asset-act-view ${isSelected?'is-active':''}" data-action="view-asset" data-asset="${i}" title="View in 3D studio">${icon('eye')} View</button>
-          <button type="button" class="a3d-asset-act-btn a3d-asset-act-del" data-action="delete-asset" data-asset="${i}" title="Delete model">${icon('trash')} Delete</button>
+          <div class="a3d-asset-meta">
+            <span class="a3d-asset-tris">${Number(asset.triangle_count||0).toLocaleString()} tris</span>
+            <span class="a3d-asset-tag ${['invalid','rejected'].includes(asset.quality_status)?'a3d-bad':''}">${esc(asset.quality_status==='invalid'?'Review':asset.quality_status==='accepted'?'Accepted':'Ready')}</span>
+          </div>
         </div>
       </div>`;
     }).join(''):'<p class="a3d-empty">Your generated models<br>will appear here.</p>';
@@ -549,7 +561,7 @@
     }catch(e){showError(e.message||'This action could not finish.');}
   }
   const assetCard=event.target.closest('.a3d-asset');
-  if(assetCard){
+  if(assetCard && !event.target.closest('[data-action="delete-asset"]')){
     const idx=Number(assetCard.dataset.asset);
     if(assets[idx]){
       bridge.select(assets[idx]);

@@ -140,6 +140,14 @@ def run_job(task):
         metadata = json.loads((job / "result.json").read_text(encoding="utf-8"))
         for ext in ("glb", "stl"):
             (job / f"model.{ext}").replace(model_output_dir() / f"{task['id']}.{ext}")
+        # Copy 2D thumbnail preview image for instant asset cards
+        for thumb_src in (job / "thumbnail.png", job / "reference-front.png", job / "input-front.png"):
+            if thumb_src.is_file():
+                try:
+                    shutil.copy2(thumb_src, model_output_dir() / f"{task['id']}.png")
+                    break
+                except Exception:
+                    pass
         task.update(metadata, status="SUCCEEDED", progress=100, stage="Ready for inspection",
                     quality_status="review", notice="Inspect all sides before accepting. Unseen surfaces are estimates.")
         write_task(task)

@@ -13,7 +13,14 @@ from app.services.text_to_3d_service import TextTo3DService
 router = APIRouter(prefix="/image-to-3d", tags=["image-to-3d"])
 
 def with_image_file_urls(result, request):
-    return {**result, "model_urls": {ext: str(request.url_for(f"download_{ext}", task_id=result["id"])) for ext in ("glb", "stl")}}
+    task_id = result["id"]
+    urls = {ext: str(request.url_for(f"download_{ext}", task_id=task_id)) for ext in ("glb", "stl")}
+    try:
+        TextTo3DService().get_file(task_id, "png")
+        urls["thumbnail"] = str(request.url_for("download_thumb", task_id=task_id))
+    except Exception:
+        pass
+    return {**result, "model_urls": urls}
 
 @router.get("/config", response_model=ApiResponse)
 def config(user=Depends(require_current_user)):

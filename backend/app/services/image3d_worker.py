@@ -3,6 +3,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import shutil
 import sys
 import traceback
 
@@ -133,7 +134,7 @@ def generate(task, job, models, progress):
         detail = "high" if is_ultra else task.get("detail", "standard")
         # Optimal octree resolution and Flow Matching steps tuned for high fidelity under 30 seconds
         resolution = {"low": 192, "standard": 256, "high": 256, "ultra": 288}.get(detail, 256)
-        steps = {"low": 15, "standard": 22, "high": 24, "ultra": 24}.get(detail, 22)
+        steps = {"low": 15, "standard": 18, "high": 20, "ultra": 22}.get(detail, 18)
         progress(25, "Inferring full geometry from labeled references")
         def callback(index, *_):
             progress(25+int(50*(index+1)/steps), f"Shape diffusion {index+1}/{steps}")
@@ -184,6 +185,14 @@ def main():
         if len(mesh.faces) > target_faces:
             progress(76, f"Optimizing geometry to {target_faces:,} polygons")
             mesh = mesh.simplify_quadric_decimation(face_count=target_faces)
+
+        # Volume-preserving Taubin smoothing removes voxel terracing without shrinking volume (Tripo-smooth quality)
+        progress(78, "Smoothing surface curvature (volume-preserving Taubin filter)")
+        try:
+            mesh = trimesh.smoothing.filter_taubin(mesh, lamb=0.5, nu=-0.53, iterations=12)
+            mesh.fix_normals()
+        except Exception as exc:
+            print(f"Notice: smoothing fallback: {exc}")
 
         mesh = repair(mesh)
 
@@ -243,6 +252,13 @@ def main():
         mesh.export(job / "model.obj")
     except Exception:
         pass
+    # Save thumbnail for fast instant preview in Assets sidebar
+    front_ref = job / "reference-front.png"
+    if front_ref.is_file():
+        try:
+            shutil.copy2(front_ref, job / "thumbnail.png")
+        except Exception:
+            pass
     if task["operation"] == "parts" and (job / "parts.glb").exists():
         (job / "parts.glb").replace(job / "model.glb")
     (job / "result.json").write_text(json.dumps({**metadata, "quality": quality, "triangle_count": len(mesh.faces), "quality_checked": True, "pipeline_version": 4}), encoding="utf-8")

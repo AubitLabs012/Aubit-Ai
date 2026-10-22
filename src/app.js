@@ -3642,7 +3642,7 @@ function trustedLocalModelUrl(value, extension) {
 
     return url.origin === backend.origin
 
-      && /^\/api\/(text-to-3d|image-to-3d)\/[0-9a-f]{32}\/(model|rigged|retopo)\.(glb|stl)$/.test(url.pathname)
+      && /^\/api\/(text-to-3d|image-to-3d)\/[0-9a-f]{32}\/(model|rigged|retopo|thumbnail)\.(glb|stl|png)$/.test(url.pathname)
 
       ? url.href
 

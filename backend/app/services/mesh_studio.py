@@ -178,22 +178,25 @@ def _rasterize_multiview_py(atlas_size, faces, face_normals, uv_pts, verts_3d,
         max_score = -1e9
         for vi in range(n_views):
             vt = v_types_arr[vi]
-            # Spatial hemisphere gating based on actual camera view type:
-            # 0: FRONT (+Z) - cannot directly see deep rear hemisphere
-            # 1: BACK  (-Z) - cannot directly see deep front hemisphere
-            # 2: LEFT  (-X) - cannot directly see deep right hemisphere
-            # 3: RIGHT (+X) - cannot directly see deep left hemisphere
-            if vt == 0 and rel_z < -0.15: continue
-            if vt == 1 and rel_z >  0.15: continue
-            if vt == 2 and rel_x >  0.15: continue
-            if vt == 3 and rel_x < -0.15: continue
+            # Strict spatial & directional occlusion gating:
+            # 0: FRONT (+Z) - looking from +Z to origin; only sees surfaces facing +Z
+            # 1: BACK  (-Z) - looking from -Z to origin; only sees surfaces facing -Z
+            # 2: LEFT  (-X) - looking from -X to origin; only sees surfaces facing -X
+            # 3: RIGHT (+X) - looking from +X to origin; only sees surfaces facing +X
+            if vt == 0 and (fn[2] < -0.05 or rel_z < -0.35): continue
+            if vt == 1 and (fn[2] >  0.05 or rel_z >  0.35): continue
+            if vt == 2 and (fn[0] >  0.05 or rel_x >  0.35): continue
+            if vt == 3 and (fn[0] < -0.05 or rel_x < -0.35): continue
 
             dot = fn[0]*v_dirs_arr[vi, 0] + fn[1]*v_dirs_arr[vi, 1] + fn[2]*v_dirs_arr[vi, 2]
             if dot > max_score:
                 max_score = dot
                 best_vi = vi
             if dot > 0.05:
-                w = dot ** 4
+                w = dot ** 5
+                # Front camera is master aesthetic reference: prioritize for all forward-facing features
+                if vt == 0 and fn[2] > 0.15:
+                    w *= 3.0
                 weights[vi] = w
                 total_w += w
         if total_w < 1e-5:
@@ -377,41 +380,49 @@ def project_and_bake_photographic_texture(mesh, references, size=2048, pbr=True,
     if pbr:
         # 1. Synthesize Tangent-Space Normal Map for depth & embossing
         gray = cv2.cvtColor(final_atlas, cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
-        sobel_x = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
-        sobel_y = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
-        strength = 2.2
+        smooth_gray = cv2.GaussianBlur(gray, (5, 5), 1.0)
+        sobel_x = cv2.Sobel(smooth_gray, cv2.CV_32F, 1, 0, ksize=3)
+        sobel_y = cv2.Sobel(smooth_gray, cv2.CV_32F, 0, 1, ksize=3)
+        strength = 1.0
         nx = -sobel_x * strength
         ny = -sobel_y * strength
         nz = np.ones_like(gray)
         norm = np.sqrt(nx*nx + ny*ny + nz*nz)
         nx /= norm; ny /= norm; nz /= norm
-        normal_map = np.zeros((size, size, 3), dtype=np.uint8)
-        normal_map[:, :, 0] = np.clip((nx * 0.5 + 0.5) * 255, 0, 255).astype(np.uint8)
-        normal_map[:, :, 1] = np.clip((ny * 0.5 + 0.5) * 255, 0, 255).astype(np.uint8)
-        normal_map[:, :, 2] = np.clip((nz * 0.5 + 0.5) * 255, 0, 255).astype(np.uint8)
-        normal_img = Image.fromarray(normal_map)
 
         # 2. Synthesize PBR Metallic-Roughness Map (ORM format: Green=Roughness, Blue=Metallic)
         hsv = cv2.cvtColor(final_atlas, cv2.COLOR_RGB2HSV)
         val = hsv[:, :, 2] / 255.0
         sat = hsv[:, :, 1] / 255.0
 
-        roughness = np.full((size, size), 0.72, dtype=np.float32)
+        roughness = np.full((size, size), 0.55, dtype=np.float32)
         metallic = np.zeros((size, size), dtype=np.float32)
 
-        # Visor/glass: glossy, smooth
-        visor_mask = (val < 0.16) & (sat < 0.25)
-        roughness[visor_mask] = 0.10
-        metallic[visor_mask] = 0.18
+        # Visor/glass: glossy, smooth glass screen with flat normal (prevents speckle noise on LED graphics)
+        visor_mask = (val < 0.20) & (sat < 0.25)
+        roughness[visor_mask] = 0.12
+        metallic[visor_mask] = 0.05
+        nx[visor_mask] = 0.0
+        ny[visor_mask] = 0.0
+        nz[visor_mask] = 1.0
 
-        # Silver/metal: zipper teeth, robotic knuckles, buckles
-        metal_mask = (val > 0.65) & (sat < 0.15) & (~visor_mask)
-        metallic[metal_mask] = 0.82
-        roughness[metal_mask] = 0.26
+        # Dielectric clean plastics / ceramics (e.g. white robot shell):
+        # Non-metallic (metallic = 0.0) with smooth-matte finish so white colors stay vibrant and bright!
+        white_shell_mask = (val > 0.65) & (sat < 0.20) & (~visor_mask)
+        roughness[white_shell_mask] = 0.32
+        metallic[white_shell_mask] = 0.0
 
-        # Semi-gloss nylon / leather
-        jacket_mask = (val >= 0.16) & (~metal_mask) & (val < 0.85)
-        roughness[jacket_mask] = 0.54
+        # Chrome/metallic accents: only for dark gunmetal or explicit saturated metallics (gold/bronze)
+        gold_mask = (val > 0.40) & (sat > 0.50) & (hsv[:, :, 0] < 35)
+        metallic[gold_mask] = 0.85
+        roughness[gold_mask] = 0.25
+
+        # Normal map packing
+        normal_map = np.zeros((size, size, 3), dtype=np.uint8)
+        normal_map[:, :, 0] = np.clip((nx * 0.5 + 0.5) * 255, 0, 255).astype(np.uint8)
+        normal_map[:, :, 1] = np.clip((ny * 0.5 + 0.5) * 255, 0, 255).astype(np.uint8)
+        normal_map[:, :, 2] = np.clip((nz * 0.5 + 0.5) * 255, 0, 255).astype(np.uint8)
+        normal_img = Image.fromarray(normal_map)
 
         orm = np.zeros((size, size, 3), dtype=np.uint8)
         orm[:, :, 0] = 255  # Ambient Occlusion
