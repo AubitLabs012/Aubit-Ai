@@ -1154,3 +1154,377 @@
   .a3d { grid-template-columns: 56px 280px minmax(260px, 1fr); }
   .tripo-sidebar { display: none; }
 }
+
+
+/* Tripo Model Panel & Geometry Flyout Additions */
+.tripo-model-subnav {
+  display: flex;
+  background: #111111;
+  border: 1px solid #282828;
+  border-radius: 20px;
+  padding: 3px;
+  gap: 3px;
+}
+.tripo-model-subnav button {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: #a1a1aa;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 18px;
+  cursor: pointer;
+  transition: all .15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.tripo-model-subnav button:hover {
+  color: #ffffff;
+}
+.tripo-model-subnav button.is-active {
+  background: #ffffff;
+  color: #111111;
+  font-weight: 750;
+}
+
+/* Checkerboard upload card */
+.tripo-checker-card {
+  border: 1.5px solid var(--tripo-purple-light);
+  border-radius: 16px;
+  background-color: #121212;
+  background-image:
+    linear-gradient(45deg, #181818 25%, transparent 25%),
+    linear-gradient(-45deg, #181818 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #181818 75%),
+    linear-gradient(-45deg, transparent 75%, #181818 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  cursor: pointer;
+  position: relative;
+  box-shadow: 0 0 16px rgba(124, 58, 237, 0.15);
+  transition: border-color .15s;
+  overflow: hidden;
+}
+.tripo-checker-card:hover {
+  border-color: #a78bfa;
+}
+.tripo-checker-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: auto;
+  text-align: center;
+}
+.tripo-checker-icon {
+  width: 38px;
+  height: 38px;
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+}
+.tripo-checker-icon svg { width: 32px; height: 32px; }
+.tripo-checker-center strong {
+  font-size: 13px;
+  color: #ffffff;
+  font-weight: 700;
+}
+.tripo-checker-center small {
+  font-size: 10px;
+  color: #71717a;
+}
+.tripo-checker-bottom-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #e4e4e7;
+  margin-top: auto;
+  padding: 4px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: all .15s;
+}
+.tripo-checker-bottom-pill:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+/* Section title labels */
+.tripo-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #a1a1aa;
+  letter-spacing: 0.3px;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tripo-section-label.gold {
+  color: #facc15;
+}
+
+/* Clickable row button */
+.tripo-row-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1e1e1e;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+}
+.tripo-row-btn:hover {
+  background: #252525;
+  border-color: #383838;
+}
+.tripo-row-btn svg {
+  color: #71717a;
+  width: 14px;
+  height: 14px;
+}
+
+/* Members Only rows */
+.tripo-member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 550;
+  color: #e4e4e7;
+  padding: 4px 0;
+}
+.tripo-badge-trial {
+  color: #facc15;
+  font-style: italic;
+  font-size: 10px;
+  font-weight: 750;
+  margin-left: 4px;
+}
+.tripo-privacy-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #d4d4d8;
+  background: #202020;
+  border: 1px solid #2e2e2e;
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.tripo-privacy-pill:hover {
+  border-color: #444;
+  color: #fff;
+}
+
+/* AI Model Card & Dropdown */
+.tripo-ai-model-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #1e1e1e;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all .15s;
+  position: relative;
+}
+.tripo-ai-model-card:hover {
+  background: #252525;
+  border-color: #383838;
+}
+.tripo-ai-model-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #282828;
+  color: #facc15;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.tripo-ai-model-icon svg { width: 17px; height: 17px; }
+.tripo-ai-model-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+.tripo-ai-model-text strong {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tripo-ai-model-text small {
+  font-size: 10px;
+  color: #888888;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tripo-ai-dropdown {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #1c1c1c;
+  border: 1px solid #333333;
+  border-radius: 12px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75);
+  z-index: 50;
+}
+.tripo-ai-dropdown[hidden] {
+  display: none !important;
+}
+.tripo-ai-option {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .15s;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  color: #ffffff;
+}
+.tripo-ai-option:hover {
+  background: #292929;
+}
+.tripo-ai-option.is-active {
+  background: #242038;
+  border: 1px solid var(--tripo-purple);
+}
+.tripo-ai-option-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.tripo-ai-option-sub {
+  font-size: 9.5px;
+  color: #999999;
+  margin-top: 2px;
+}
+
+/* Floating Geometry & Texture Flyout Panel */
+.tripo-flyout-panel {
+  position: absolute;
+  left: 396px;
+  top: 62px;
+  width: 350px;
+  background: #1a1a1a;
+  border: 1px solid #2e2e2e;
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85);
+  z-index: 40;
+  backdrop-filter: blur(16px);
+}
+.tripo-flyout-panel[hidden] {
+  display: none !important;
+}
+.tripo-flyout-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.tripo-flyout-head h3 {
+  font-size: 15px;
+  font-weight: 750;
+  color: #ffffff;
+  margin: 0;
+}
+.tripo-flyout-sub {
+  font-size: 11px;
+  color: #71717a;
+  margin-top: 3px !important;
+}
+.tripo-flyout-close {
+  background: transparent;
+  border: 0;
+  color: #a1a1aa;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.tripo-flyout-close:hover {
+  background: #27272a;
+  color: #ffffff;
+}
+.tripo-flyout-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e4e4e7;
+  padding: 2px 0;
+}
+.tripo-poly-slider-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tripo-poly-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #71717a;
+}
+.tripo-poly-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tripo-poly-input-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--tripo-purple);
+  height: 4px;
+  cursor: pointer;
+}
+.tripo-poly-input-row input[type="number"] {
+  width: 84px;
+  background: #111111;
+  border: 1px solid #333333;
+  border-radius: 6px;
+  color: #ffffff;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
