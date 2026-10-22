@@ -1528,3 +1528,212 @@
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
+
+
+/* Multi-View Grid for Hunyuan3D-2mv */
+.tripo-multiview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+}
+.tripo-multiview-slot {
+  background: #181818;
+  border: 1.5px dashed #333333;
+  border-radius: 12px;
+  height: 110px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all .16s;
+}
+.tripo-multiview-slot:hover {
+  border-color: var(--tripo-purple-light);
+  background: #1f1d28;
+}
+.tripo-multiview-slot.has-image {
+  border-style: solid;
+  border-color: var(--tripo-purple);
+  background: #121212;
+}
+.tripo-multiview-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  padding: 4px;
+}
+.tripo-multiview-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  color: #facc15;
+  font-size: 9px;
+  font-weight: 750;
+  padding: 1px 6px;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+.tripo-multiview-slot.has-image .tripo-multiview-badge {
+  background: var(--tripo-purple);
+  color: #ffffff;
+}
+.tripo-multiview-actions {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  display: flex;
+  gap: 4px;
+}
+.tripo-mv-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 0;
+  color: #e4e4e7;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all .14s;
+}
+.tripo-mv-btn:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+.tripo-multiview-batch {
+  width: 100%;
+  background: #202020;
+  border: 1px solid #2e2e2e;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #e4e4e7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.tripo-multiview-batch:hover {
+  background: #282828;
+  border-color: var(--tripo-purple-light);
+  color: #ffffff;
+}
+
+/* Center Loading Figure in 3D Viewport */
+.tripo-loading-figure {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 15;
+  pointer-events: none;
+}
+.tripo-loading-figure[hidden] {
+  display: none !important;
+}
+.tripo-figure-mesh {
+  position: relative;
+  width: 130px;
+  height: 130px;
+  display: grid;
+  place-items: center;
+}
+.tripo-figure-halo {
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.4) 0%, rgba(250, 204, 21, 0.15) 50%, transparent 70%);
+  filter: blur(8px);
+  animation: pulseHalo 2s ease-in-out infinite alternate;
+}
+@keyframes pulseHalo {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  100% { transform: scale(1.18); opacity: 1; }
+}
+.tripo-figure-cube-wrap {
+  width: 70px;
+  height: 70px;
+  perspective: 600px;
+}
+.tripo-figure-cube {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  animation: rotateCube 4s linear infinite;
+}
+@keyframes rotateCube {
+  0% { transform: rotateX(0deg) rotateY(0deg); }
+  100% { transform: rotateX(360deg) rotateY(360deg); }
+}
+.tripo-cube-face {
+  position: absolute;
+  width: 70px;
+  height: 70px;
+  border: 1.5px solid var(--tripo-purple-light);
+  background: rgba(124, 58, 237, 0.15);
+  box-shadow: 0 0 12px rgba(124, 58, 237, 0.45);
+}
+.tripo-face-front  { transform: rotateY(0deg) translateZ(35px); }
+.tripo-face-back   { transform: rotateY(180deg) translateZ(35px); }
+.tripo-face-right  { transform: rotateY(90deg) translateZ(35px); }
+.tripo-face-left   { transform: rotateY(-90deg) translateZ(35px); }
+.tripo-face-top    { transform: rotateX(90deg) translateZ(35px); }
+.tripo-face-bottom { transform: rotateX(-90deg) translateZ(35px); }
+
+.tripo-figure-details {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+.tripo-figure-pct {
+  font-size: 28px;
+  font-weight: 850;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 18px rgba(250, 204, 21, 0.65);
+}
+.tripo-figure-stage {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--tripo-yellow);
+  letter-spacing: 0.3px;
+}
+.tripo-figure-sub {
+  font-size: 11px;
+  color: #a1a1aa;
+}
+.tripo-figure-bar {
+  width: 220px;
+  height: 6px;
+  background: #242424;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+  margin-top: 4px;
+}
+.tripo-figure-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--tripo-purple), var(--tripo-yellow));
+  border-radius: 6px;
+  transition: width .3s ease;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.6);
+}

@@ -93,6 +93,7 @@
   let activeMatMode = 'pbr';
   let selectedEngine = 'hunyuan-2.1';
   let modelSubMode = 'hd'; // 'hd' or 'smart_mesh'
+  const multiViewFiles = new Map(); // 'front', 'left', 'back', 'right'
 
   const defaultSettings = {
     ultra: true,
@@ -343,6 +344,31 @@
           camera-orbit="0deg 75deg auto"
         ></model-viewer>
 
+        <!-- Dynamic Holographic 3D Loading Figure -->
+        <div class="tripo-loading-figure" id="tripo-loading-figure" hidden>
+          <div class="tripo-figure-mesh">
+            <div class="tripo-figure-halo"></div>
+            <div class="tripo-figure-cube-wrap">
+              <div class="tripo-figure-cube">
+                <div class="tripo-cube-face tripo-face-front"></div>
+                <div class="tripo-cube-face tripo-face-back"></div>
+                <div class="tripo-cube-face tripo-face-right"></div>
+                <div class="tripo-cube-face tripo-face-left"></div>
+                <div class="tripo-cube-face tripo-face-top"></div>
+                <div class="tripo-cube-face tripo-face-bottom"></div>
+              </div>
+            </div>
+          </div>
+          <div class="tripo-figure-details">
+            <div class="tripo-figure-pct" id="tripo-figure-pct">0%</div>
+            <div class="tripo-figure-stage" id="tripo-figure-stage">Synthesizing 3D geometry...</div>
+            <div class="tripo-figure-bar">
+              <div class="tripo-figure-bar-fill" id="tripo-figure-bar-fill" style="width: 0%;"></div>
+            </div>
+            <div class="tripo-figure-sub">Local generation · Processing on your machine</div>
+          </div>
+        </div>
+
         <!-- Floating Stats Box -->
         <div class="tripo-stats-box" id="tripo-stats-box">
           <div class="tripo-stats-row">
@@ -409,7 +435,7 @@
           </div>
         </div>
 
-        <!-- Progress Overlay -->
+        <!-- Floating Bottom Progress Overlay -->
         <div class="tripo-progress-overlay" id="tripo-progress" hidden>
           <div class="tripo-progress-head">
             <strong id="tripo-stage-label">Generating 3D model...</strong>
@@ -529,6 +555,7 @@
         <ol style="font-size:12px;color:#d4d4d8;line-height:1.7;padding-left:18px;">
           <li><strong>Upload or Generate:</strong> Drop a reference photo into the left panel card or pick from past models on the right.</li>
           <li><strong>Hunyuan AI Models:</strong> Switch between H3.1 (Best Quality), Hunyuan3D-2.0, Hunyuan3D-2mv (Multi-View), and Hunyuan-Mini (Fast).</li>
+          <li><strong>Hunyuan3D-2mv:</strong> Provides multi-angle camera slots (Front, Left, Back, Right) for 360° fidelity.</li>
           <li><strong>Geometry & Texture Flyout:</strong> Toggle Ultra Mesh Quality, AI Complete, PBR, Topology, and Polycount anytime.</li>
           <li><strong>Instant Preview:</strong> Left-click any model card on the right to load and interact with it in real-time.</li>
           <li><strong>Export:</strong> Download GLB, STL (3D Print), or OBJ files anytime.</li>
@@ -578,11 +605,12 @@
 
     if (activeRail === 'model') {
       const curEngine = hunyuanModels.find(m => m.id === selectedEngine) || hunyuanModels[0];
+      const isMultiView = selectedEngine === 'hunyuan-mv';
 
       panel.innerHTML = `
         <div class="tripo-panel-header">
           ${icons.spark}
-          <span>Generate Model</span>
+          <span>${isMultiView ? 'Hunyuan3D-2mv (Multi-View)' : 'Generate Model'}</span>
         </div>
 
         <!-- Mode Subnav: HD Model vs Smart Mesh -->
@@ -591,24 +619,61 @@
           <button type="button" class="${modelSubMode === 'smart_mesh' ? 'is-active' : ''}" data-action="submode-smart">Smart Mesh ⚡</button>
         </div>
 
-        <!-- Checkerboard Upload Card -->
-        <div class="tripo-checker-card" id="tripo-model-dropzone" title="Click or drop reference image">
-          ${currentRefImageUrl ? `
-            <img src="${esc(currentRefImageUrl)}" alt="" style="width:100%;height:100%;object-fit:contain;padding:10px;pointer-events:none;" />
-            <button type="button" class="tripo-ref-btn del" data-action="clear-ref" title="Clear image" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.6);">${icons.trash}</button>
-          ` : `
-            <div class="tripo-checker-center">
-              <div class="tripo-checker-icon">${icons.image}</div>
-              <strong>Upload</strong>
-              <small>JPG, PNG, WEBP Size ≤ 20MB</small>
-            </div>
-            <div class="tripo-checker-bottom-pill" data-action="gen-image-prompt">
-              <span>Generate Image for 3D</span>
-              ${icons.chevronRight}
-            </div>
-          `}
-          <input type="file" id="tripo-model-file-input" accept="image/png,image/jpeg,image/webp" style="display:none;" />
-        </div>
+        ${isMultiView ? `
+          <!-- Multi-View Angles Grid -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;">
+            <span class="tripo-section-label" style="margin:0;">Multi-View References</span>
+            <span style="font-size:10px;font-weight:700;color:#facc15;" id="tripo-mv-count">${multiViewFiles.size} / 4 angles</span>
+          </div>
+          <p style="font-size:10px;color:#71717a;margin:0 0 2px 0;">Upload front + matching side/back views</p>
+
+          <div class="tripo-multiview-grid">
+            ${['front', 'left', 'back', 'right'].map(view => {
+              const fileObj = multiViewFiles.get(view);
+              return `
+                <div class="tripo-multiview-slot ${fileObj ? 'has-image' : ''}" data-view="${view}" title="Upload ${view} view">
+                  <span class="tripo-multiview-badge">${view}</span>
+                  ${fileObj ? `
+                    <img src="${esc(fileObj.url)}" alt="${view}" />
+                    <div class="tripo-multiview-actions">
+                      <button type="button" class="tripo-mv-btn" data-action="rotate-mv" data-view="${view}" title="Rotate 90°">${icons.reset}</button>
+                      <button type="button" class="tripo-mv-btn" data-action="delete-mv" data-view="${view}" title="Remove angle">${icons.trash}</button>
+                    </div>
+                  ` : `
+                    <div class="tripo-checker-icon" style="opacity:0.4;">${icons.camera}</div>
+                    <small style="color:#71717a;font-size:9.5px;margin-top:2px;">Click to upload</small>
+                  `}
+                  <input type="file" data-mv-input="${view}" accept="image/png,image/jpeg,image/webp" style="display:none;" />
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <button type="button" class="tripo-multiview-batch" data-action="batch-upload-btn">
+            ${icons.image}
+            <span>Upload several angles at once</span>
+            <input type="file" id="tripo-batch-file-input" multiple accept="image/png,image/jpeg,image/webp" style="display:none;" />
+          </button>
+        ` : `
+          <!-- Single Reference Upload Card -->
+          <div class="tripo-checker-card" id="tripo-model-dropzone" title="Click or drop reference image">
+            ${currentRefImageUrl ? `
+              <img src="${esc(currentRefImageUrl)}" alt="" style="width:100%;height:100%;object-fit:contain;padding:10px;pointer-events:none;" />
+              <button type="button" class="tripo-ref-btn del" data-action="clear-ref" title="Clear image" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.6);">${icons.trash}</button>
+            ` : `
+              <div class="tripo-checker-center">
+                <div class="tripo-checker-icon">${icons.image}</div>
+                <strong>Upload</strong>
+                <small>JPG, PNG, WEBP Size ≤ 20MB</small>
+              </div>
+              <div class="tripo-checker-bottom-pill" data-action="gen-image-prompt">
+                <span>Generate Image for 3D</span>
+                ${icons.chevronRight}
+              </div>
+            `}
+            <input type="file" id="tripo-model-file-input" accept="image/png,image/jpeg,image/webp" style="display:none;" />
+          </div>
+        `}
 
         <!-- General Settings Section -->
         <div class="tripo-section-label">General Settings</div>
@@ -679,7 +744,9 @@
         </button>
       `;
 
-      bindDropzone($('#tripo-model-dropzone'), $('#tripo-model-file-input'));
+      if (!isMultiView) {
+        bindDropzone($('#tripo-model-dropzone'), $('#tripo-model-file-input'));
+      }
     } else {
       // Texture or other mode
       panel.innerHTML = `
@@ -788,9 +855,54 @@
     currentRefImageFile = file;
     currentRefImageUrl = URL.createObjectURL(file);
 
+    // Also populate multiView 'front' if empty
+    if (!multiViewFiles.has('front')) {
+      multiViewFiles.set('front', { file, url: currentRefImageUrl });
+    }
+
     renderToolPanel();
     error = '';
     renderStatus();
+  }
+
+  function handleMultiViewFile(view, file) {
+    if (!file) return;
+    if (file.size > 20 * 1024 * 1024) return showError('Angle image must be under 20 MB.');
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) return showError('Select PNG, JPG, or WEBP image.');
+
+    const old = multiViewFiles.get(view);
+    if (old && old.url.startsWith('blob:')) URL.revokeObjectURL(old.url);
+
+    const url = URL.createObjectURL(file);
+    multiViewFiles.set(view, { file, url });
+
+    if (view === 'front') {
+      currentRefImageFile = file;
+      currentRefImageUrl = url;
+    }
+
+    renderToolPanel();
+    error = '';
+    renderStatus();
+  }
+
+  async function rotateMultiViewFile(view) {
+    const item = multiViewFiles.get(view);
+    if (!item) return;
+    try {
+      const bitmap = await createImageBitmap(item.file);
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.height;
+      canvas.height = bitmap.width;
+      const ctx = canvas.getContext('2d');
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2);
+      bitmap.close();
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      const newFile = new File([blob], item.file.name.replace(/\.[^.]+$/, '.png'), { type: 'image/png' });
+      handleMultiViewFile(view, newFile);
+    } catch (_) {}
   }
 
   async function loadLibrary() {
@@ -887,6 +999,7 @@
 
   function renderStatus() {
     const task = state.model3dTask;
+    const isBusy = !!state.model3dBusy;
     const message = error || state.model3dError || state.model3dNotice || '';
     const msgEl = $('#a3d-message');
     if (msgEl) {
@@ -895,28 +1008,56 @@
       msgEl.classList.toggle('is-error', !!(error || state.model3dError));
     }
 
+    // Dynamic Central 3D Holographic Loading Figure
+    const figureEl = $('#tripo-loading-figure');
+    if (figureEl) {
+      figureEl.hidden = !isBusy;
+      if (isBusy) {
+        const rawPct = Number(task?.progress ?? 0);
+        const stage = task?.stage || state.model3dNotice || 'Synthesizing 3D geometry...';
+        const pctText = `${Math.min(100, Math.max(0, Math.round(rawPct)))}%`;
+
+        const figPct = $('#tripo-figure-pct');
+        if (figPct) figPct.textContent = pctText;
+
+        const figStage = $('#tripo-figure-stage');
+        if (figStage) figStage.textContent = stage;
+
+        const figBar = $('#tripo-figure-bar-fill');
+        if (figBar) figBar.style.width = pctText;
+      }
+    }
+
+    // Floating progress overlay
     const progEl = $('#tripo-progress');
     if (progEl) {
-      progEl.hidden = !state.model3dBusy;
-      const stageLabel = $('#tripo-stage-label');
-      if (stageLabel) stageLabel.textContent = task?.stage || 'Generating 3D model...';
-      const pctLabel = $('#tripo-percent-label');
-      if (pctLabel) pctLabel.textContent = `${task?.progress || 0}%`;
-      const fill = $('#tripo-prog-fill');
-      if (fill) fill.style.width = `${task?.progress || 0}%`;
+      progEl.hidden = !isBusy;
+      if (isBusy) {
+        const stageLabel = $('#tripo-stage-label');
+        if (stageLabel) stageLabel.textContent = task?.stage || 'Generating 3D model...';
+        const pctLabel = $('#tripo-percent-label');
+        if (pctLabel) pctLabel.textContent = `${task?.progress || 0}%`;
+        const fill = $('#tripo-prog-fill');
+        if (fill) fill.style.width = `${task?.progress || 0}%`;
+      }
     }
 
     const genBtn = $('[data-action="generate"]');
-    if (genBtn) genBtn.disabled = !!state.model3dBusy;
+    if (genBtn) genBtn.disabled = isBusy;
 
-    const url = task?.status === 'SUCCEEDED' ? bridge.url(task.model_urls?.glb, 'glb') : '';
-    if (url && url !== currentUrl) {
-      currentUrl = url;
-      const viewer = $('#a3d-viewer');
-      if (viewer) {
-        viewer.src = url;
+    const viewer = $('#a3d-viewer');
+    if (viewer) {
+      if (isBusy) {
+        viewer.style.opacity = '0.15';
+      } else {
+        viewer.style.opacity = '1';
+        const url = task?.status === 'SUCCEEDED' ? bridge.url(task.model_urls?.glb, 'glb') : '';
+        if (url && url !== currentUrl) {
+          currentUrl = url;
+          viewer.src = url;
+          syncRefToModel(task);
+        }
       }
-      syncRefToModel(task);
     }
   }
 
@@ -970,10 +1111,30 @@
 
   async function onChange(e) {
     const el = e.target;
+
+    // Single view input
     if (el.id === 'tripo-model-file-input' || el.id === 'tripo-ref-file-input') {
       if (el.files?.[0]) handleRefFile(el.files[0]);
       el.value = '';
     }
+
+    // Specific Multi-View angle input
+    if (el.dataset.mvInput) {
+      const view = el.dataset.mvInput;
+      if (el.files?.[0]) handleMultiViewFile(view, el.files[0]);
+      el.value = '';
+    }
+
+    // Batch Multi-View upload input
+    if (el.id === 'tripo-batch-file-input') {
+      const filesArr = [...(el.files || [])];
+      const views = ['front', 'left', 'back', 'right'];
+      for (let i = 0; i < Math.min(filesArr.length, 4); i++) {
+        handleMultiViewFile(views[i], filesArr[i]);
+      }
+      el.value = '';
+    }
+
     if (el.id === 'tripo-upload-model-input') {
       const file = el.files?.[0];
       if (file) {
@@ -1017,6 +1178,42 @@
   }
 
   async function onClick(e) {
+    // Multi-View slot click
+    const mvSlot = e.target.closest('.tripo-multiview-slot');
+    if (mvSlot && !e.target.closest('button')) {
+      const view = mvSlot.dataset.view;
+      const input = root.querySelector(`input[data-mv-input="${view}"]`);
+      if (input) input.click();
+      return;
+    }
+
+    // Multi-View slot actions
+    const rotBtn = e.target.closest('[data-action="rotate-mv"]');
+    if (rotBtn) {
+      e.stopPropagation();
+      rotateMultiViewFile(rotBtn.dataset.view);
+      return;
+    }
+    const delMvBtn = e.target.closest('[data-action="delete-mv"]');
+    if (delMvBtn) {
+      e.stopPropagation();
+      const view = delMvBtn.dataset.view;
+      const item = multiViewFiles.get(view);
+      if (item && item.url.startsWith('blob:')) URL.revokeObjectURL(item.url);
+      multiViewFiles.delete(view);
+      if (view === 'front') {
+        currentRefImageFile = null;
+        currentRefImageUrl = '';
+      }
+      renderToolPanel();
+      return;
+    }
+
+    if (e.target.closest('[data-action="batch-upload-btn"]')) {
+      $('#tripo-batch-file-input')?.click();
+      return;
+    }
+
     // Submode switches
     if (e.target.closest('[data-action="submode-hd"]')) {
       modelSubMode = 'hd';
@@ -1052,14 +1249,7 @@
     const aiOpt = e.target.closest('.tripo-ai-option');
     if (aiOpt) {
       selectedEngine = aiOpt.dataset.engine;
-      const m = hunyuanModels.find(x => x.id === selectedEngine) || hunyuanModels[0];
-      const nameEl = $('#tripo-ai-name');
-      const subEl = $('#tripo-ai-sub');
-      if (nameEl) nameEl.textContent = m.name;
-      if (subEl) subEl.textContent = m.subtitle;
-      $$('.tripo-ai-option').forEach(b => b.classList.toggle('is-active', b === aiOpt));
-      const dd = $('#tripo-ai-dropdown');
-      if (dd) dd.hidden = true;
+      renderToolPanel();
       return;
     }
 
@@ -1138,6 +1328,7 @@
         }
         currentRefImageFile = null;
         currentRefImageUrl = '';
+        multiViewFiles.delete('front');
         renderToolPanel();
         return;
       }
@@ -1190,17 +1381,32 @@
 
       if (action === 'generate') {
         try {
-          if (!currentRefImageFile && !state.model3dTask) {
-            throw new Error('Please upload a reference image or select a model first.');
+          const form = new FormData();
+
+          if (selectedEngine === 'hunyuan-mv') {
+            const mvLabels = ['front', 'left', 'back', 'right'].filter(v => multiViewFiles.has(v));
+            if (!mvLabels.includes('front')) {
+              throw new Error('Please upload at least a Front reference image for Hunyuan3D-2mv.');
+            }
+            if (mvLabels.length < 2) {
+              throw new Error('Hunyuan3D-2mv requires at least two labeled angles (e.g. Front + Left/Back/Right).');
+            }
+            for (const view of mvLabels) {
+              form.append('images', multiViewFiles.get(view).file);
+            }
+            form.append('views', JSON.stringify(mvLabels));
+          } else {
+            if (!currentRefImageFile && !state.model3dTask) {
+              throw new Error('Please upload a reference image or select a model first.');
+            }
+            if (currentRefImageFile) {
+              form.append('images', currentRefImageFile);
+              form.append('views', JSON.stringify(['front']));
+            }
           }
 
-          const form = new FormData();
-          if (currentRefImageFile) {
-            form.append('images', currentRefImageFile);
-            form.append('views', JSON.stringify(['front']));
-          }
-          // Selected engine from AI Model selector (H3.1, Hunyuan3D-2.0, Hunyuan-Mini, etc.)
-          form.append('engine', selectedEngine || 'hunyuan-2.1');
+          // Engine mapping (fallbacks seamlessly if not installed locally)
+          form.append('engine', selectedEngine || 'hunyuan-mini');
           form.append('detail', selectedEngine === 'hunyuan-mini' ? 'standard' : 'high');
           form.append('seed', '12345');
           form.append('remove_background', 'true');
@@ -1213,6 +1419,11 @@
           form.append('pbr', String(settings.pbr));
           form.append('topology', String(settings.topology));
           form.append('polycount', String(settings.polycount));
+
+          // Set immediate loading state
+          state.model3dBusy = true;
+          state.model3dNotice = 'Synthesizing 3D geometry with Hunyuan...';
+          renderStatus();
 
           return bridge.generateImage(form);
         } catch (err) {

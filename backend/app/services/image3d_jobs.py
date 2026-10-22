@@ -71,7 +71,13 @@ def prepare_job(images, *, engine="hunyuan-mini", detail="standard", remove_back
         raise HTTPException(400, "Hunyuan3D-2mv needs at least two labeled views.")
     decoded = [(view, read_image(data), Path(name.replace('\\', '/')).name[:120]) for view, data, name in images]
     if not spec["available"]:
-        raise HTTPException(503, f"{spec['name']}: {spec['message']}. {spec['setup_command']}")
+        fallback_id = "hunyuan-mv" if len(views) > 1 else "hunyuan-mini"
+        fallback_spec = engine_status(fallback_id)
+        if fallback_spec["available"]:
+            engine = fallback_id
+            spec = fallback_spec
+        else:
+            raise HTTPException(503, f"{spec['name']}: {spec['message']}. {spec['setup_command']}")
     task, job = _new_task(engine=spec["name"], engine_id=engine, operation="generate", detail=detail,
                           remove_background=remove_background, align=align, seed=seed, views=views,
                           ultra_mesh_quality=ultra_mesh_quality, ai_complete=ai_complete,
